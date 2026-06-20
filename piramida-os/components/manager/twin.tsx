@@ -278,41 +278,75 @@ export function DnaRadar({ dims }: { dims: { s: string; v: number }[] }) {
   );
 }
 
-export function DecisionGraph() {
+export function DecisionGraph({ data }: { data?: import("@/lib/planning/decision-graph").DecisionGraphData | null }) {
   const A = "#C8F000";
-  const node = (x: number, y: number, w: number, label: string, sub: string, c?: string) => (
-    <g key={label}>
-      <rect x={x} y={y} width={w} height={46} rx={9} fill="#151821" stroke={c || "rgba(255,255,255,.12)"} strokeWidth={1.3} />
+
+  // Render helper used for both real and fallback graphs
+  const renderNode = (x: number, y: number, w: number, h: number, label: string, sub: string, color?: string, key?: string) => (
+    <g key={key ?? label}>
+      <rect x={x} y={y} width={w} height={h} rx={9} fill="#151821" stroke={color || "rgba(255,255,255,.12)"} strokeWidth={1.3} />
       <text x={x + 13} y={y + 19} fill="#fff" style={{ font: "700 12px Inter,sans-serif" }}>
-        {label}
+        {label.length > 22 ? label.slice(0, 21) + "…" : label}
       </text>
       <text x={x + 13} y={y + 34} fill="#7D8799" style={{ font: "500 9px 'JetBrains Mono',monospace" }}>
-        {sub}
+        {sub.length > 26 ? sub.slice(0, 25) + "…" : sub}
       </text>
     </g>
   );
-  const link = (x1: number, y1: number, x2: number, y2: number, c?: string, key?: string) => (
+
+  const renderEdge = (x1: number, y1: number, x2: number, y2: number, color?: string, key?: string) => (
     <path
       key={key}
-      d={"M" + x1 + " " + y1 + " C " + (x1 + 40) + " " + y1 + " " + (x2 - 40) + " " + y2 + " " + x2 + " " + y2}
+      d={`M${x1} ${y1} C ${x1 + 40} ${y1} ${x2 - 40} ${y2} ${x2} ${y2}`}
       fill="none"
-      stroke={c || "rgba(255,255,255,.14)"}
+      stroke={color || "rgba(255,255,255,.14)"}
       strokeWidth={1.4}
     />
   );
+
+  if (data && data.nodes.length > 0) {
+    // Build a lookup: nodeId → node rect for edge rendering
+    const nodeMap = new Map(data.nodes.map((n) => [n.id, n]));
+    const ch: React.ReactNode[] = [];
+
+    for (const edge of data.edges) {
+      const src = nodeMap.get(edge.from);
+      const tgt = nodeMap.get(edge.to);
+      if (!src || !tgt) continue;
+      const x1 = src.x + src.w;
+      const y1 = src.y + src.h / 2;
+      const x2 = tgt.x;
+      const y2 = tgt.y + tgt.h / 2;
+      ch.push(renderEdge(x1, y1, x2, y2, edge.color, `e_${edge.from}_${edge.to}`));
+    }
+
+    for (const node of data.nodes) {
+      ch.push(renderNode(node.x, node.y, node.w, node.h, node.label, node.sub, node.color, node.id));
+    }
+
+    const maxX = Math.max(...data.nodes.map((n) => n.x + n.w)) + 20;
+    const maxY = Math.max(...data.nodes.map((n) => n.y + n.h)) + 20;
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${maxX} ${maxY}`} preserveAspectRatio="xMidYMid meet">
+        {ch}
+      </svg>
+    );
+  }
+
+  // Hardcoded fallback — used when no real plan data is available
   const reqY = 137;
   const ch: React.ReactNode[] = [];
-  ch.push(link(212, reqY, 250, 52, "rgba(200,240,0,.3)", "l1"));
-  ch.push(link(212, reqY, 250, 137, "rgba(200,240,0,.3)", "l2"));
-  ch.push(link(212, reqY, 250, 222, "rgba(200,240,0,.3)", "l3"));
-  [52, 137, 222].forEach((y, i) => ch.push(link(430, y + 23, 470, y + 23, undefined, "lb" + i)));
-  ch.push(node(40, reqY - 23, 172, "Raw Request", "180 GUESTS · CONF", A));
-  ch.push(node(250, 29, 180, "Keynote stage", "→ GREEN ROOM", "#22C55E"));
-  ch.push(node(250, 114, 180, "2 breakout tracks", "→ BLUE + YELLOW", "#2A6FDB"));
-  ch.push(node(250, 199, 180, "Networking + catering", "→ COMMON AREA", "#7A4BD6"));
-  ch.push(node(470, 29, 150, "AV + livestream", "3 ASSETS"));
-  ch.push(node(470, 114, 150, "Mics + projectors", "SUBSTITUTED"));
-  ch.push(node(470, 199, 150, "QR registration", "→ ENTRANCE"));
+  ch.push(renderEdge(212, reqY, 250, 52, "rgba(200,240,0,.3)", "l1"));
+  ch.push(renderEdge(212, reqY, 250, 137, "rgba(200,240,0,.3)", "l2"));
+  ch.push(renderEdge(212, reqY, 250, 222, "rgba(200,240,0,.3)", "l3"));
+  [52, 137, 222].forEach((y, i) => ch.push(renderEdge(430, y + 23, 470, y + 23, undefined, "lb" + i)));
+  ch.push(renderNode(40, reqY - 23, 172, 46, "Raw Request", "180 GUESTS · CONF", A));
+  ch.push(renderNode(250, 29, 180, 46, "Keynote stage", "→ GREEN ROOM", "#22C55E"));
+  ch.push(renderNode(250, 114, 180, 46, "2 breakout tracks", "→ BLUE + YELLOW", "#2A6FDB"));
+  ch.push(renderNode(250, 199, 180, 46, "Networking + catering", "→ COMMON AREA", "#7A4BD6"));
+  ch.push(renderNode(470, 29, 150, 46, "AV + livestream", "3 ASSETS"));
+  ch.push(renderNode(470, 114, 150, 46, "Mics + projectors", "SUBSTITUTED"));
+  ch.push(renderNode(470, 199, 150, 46, "QR registration", "→ ENTRANCE"));
   return (
     <svg width="100%" height="100%" viewBox="0 0 630 270" preserveAspectRatio="xMidYMid meet">
       {ch}

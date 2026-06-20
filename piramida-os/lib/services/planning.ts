@@ -14,6 +14,7 @@ import { computeEventDna } from "../planning/event-dna";
 import { computeFeasibility, computeManualWorkSavings } from "../planning/feasibility";
 import { generatePlanTasks } from "../planning/tasks";
 import { buildQuote, type PlannedQuote } from "../planning/quote";
+import { computePlanDiff, type PlanDiff, type PlanSnapshotLike } from "../planning/plan-diff";
 import type {
   ActiveWindow,
   AssetDryRunResult,
@@ -434,6 +435,83 @@ export async function generateEventPlan(eventId: string): Promise<EventPlanResul
     quote: computed.quote,
     manualWorkSavings: computed.manualWorkSavings,
   };
+}
+
+export interface SimulateChangeInput {
+  expectedGuests?: number;
+}
+
+export interface SimulateChangeResult {
+  fromGuests: number;
+  toGuests: number;
+  simulated: EventPlanResult;
+  diff: PlanDiff;
+}
+
+export async function simulatePlanChange(eventId: string, patch: SimulateChangeInput): Promise<SimulateChangeResult> {
+  await requirePermission("events.plan");
+  uuid.parse(eventId);
+  const orgId = await getOrgId();
+  const [event, snapshot] = await Promise.all([
+    loadEventForPlanning(eventId, orgId),
+    loadWorldSnapshot(orgId),
+  ]);
+  if (!event) throw new AuthError("Event not found", 404);
+
+  const baseRequirements = requirementsFromEvent(event);
+  const fromGuests = Number(baseRequirements.expectedGuests ?? event.expectedGuests ?? 0);
+
+  const patchedRequirements: RequirementMap = { ...baseRequirements };
+  if (patch.expectedGuests !== undefined) patchedRequirements.expectedGuests = patch.expectedGuests;
+  const toGuests = Number(patchedRequirements.expectedGuests ?? fromGuests);
+
+  const planEvent = planningEvent(event, patchedRequirements);
+  const config = configFromSnapshot(snapshot);
+  const [spaceWindows, assetWindows] = await Promise.all([
+    activeSpaceWindows(orgId, planEvent),
+    activeAssetWindows(orgId, planEvent),
+  ]);
+
+  const spaceScores = matchSpaces({ event: planEvent, requirements: patchedRequirements, spaces: snapshot.spaces, activeSpaceWindows: spaceWindows, config });
+  const selectedSpaces = selectMultiSpacePlan(spaceScores, patchedRequirements);
+  const assetPlan = reserveAssetsDryRun({ event: planEvent, requirements: patchedRequirements, snapshot, activeAssetWindows: assetWindows });
+  const dnaScores = computeEventDna(patchedRequirements, config);
+  const quote = buildQuote({ event: planEvent, selectedSpaces, assetPlan, snapshot });
+  const tasks = generatePlanTasks({ event: planEvent, requirements: patchedRequirements, selectedSpaces });
+  const openConflictCount = event.conflicts.filter((c) => c.status === "OPEN").length;
+  const feasibility = computeFeasibility({
+    selectedSpaces,
+    assetPlan,
+    openConflictCount,
+    taskCount: tasks.length,
+    hasProposal: event.proposals.length > 0,
+    isPublished: event.publication !== null,
+    config,
+  });
+  const manualWorkSavings = computeManualWorkSavings({ selectedSpaces, assetPlan, dnaCount: dnaScores.length });
+  const hash = inputHash({ patchedRequirements, spaceCount: selectedSpaces.length });
+
+  const simulated: EventPlanResult = {
+    eventId,
+    planVersionId: "simulated",
+    inputHash: hash,
+    idempotent: false,
+    spaceScores,
+    selectedSpaces,
+    assetPlan,
+    assetShortages: assetPlan.shortages,
+    feasibility,
+    feasibilityScore: feasibility.score,
+    dnaScores,
+    quote,
+    manualWorkSavings,
+  };
+
+  const currentSnapshot = (event.planVersions[0]?.snapshot ?? {}) as PlanSnapshotLike;
+  const simulatedSnapshot: PlanSnapshotLike = { selectedSpaces, assetPlan, feasibility, quote };
+  const diff = computePlanDiff(currentSnapshot, simulatedSnapshot, { guestsDelta: toGuests - fromGuests });
+
+  return { fromGuests, toGuests, simulated, diff };
 }
 
 export async function getSpaceInfo(input: { eventId: string; spaceId: string }) {

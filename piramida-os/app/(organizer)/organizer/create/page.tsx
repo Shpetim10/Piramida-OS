@@ -73,9 +73,35 @@ export default function CreateEventPage() {
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
   }
 
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   function submitPrompt() {
     setText((t) => t || DEFAULT_PROMPT);
     setStage("result");
+  }
+
+  async function sendRequest() {
+    const rawText = text || DEFAULT_PROMPT;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch("/api/organizer/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText, channel: "portal" }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setSubmitError(d.error ?? "Submission failed. Please try again.");
+        return;
+      }
+      setStage("sent");
+    } catch {
+      setSubmitError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const optionButton = (
@@ -392,8 +418,14 @@ export default function CreateEventPage() {
               </div>
 
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {submitError && (
+                  <div style={{ width: "100%", font: "500 12px Inter, sans-serif", color: "#EF4444", marginBottom: 4 }}>
+                    {submitError}
+                  </div>
+                )}
                 <button
-                  onClick={() => setStage("sent")}
+                  onClick={sendRequest}
+                  disabled={submitting}
                   style={{
                     flex: 1,
                     minWidth: 180,
@@ -404,14 +436,14 @@ export default function CreateEventPage() {
                     padding: 15,
                     border: "none",
                     borderRadius: 12,
-                    background: "#C8F000",
-                    color: "#0D0D12",
+                    background: submitting ? "#2A3040" : "#C8F000",
+                    color: submitting ? "#7D8799" : "#0D0D12",
                     font: "700 14px Inter, sans-serif",
-                    cursor: "pointer",
-                    boxShadow: "0 8px 26px rgba(200,240,0,.2)",
+                    cursor: submitting ? "default" : "pointer",
+                    boxShadow: submitting ? "none" : "0 8px 26px rgba(200,240,0,.2)",
                   }}
                 >
-                  Approve &amp; send for approval
+                  {submitting ? "Submitting…" : "Approve & send for approval"}
                 </button>
                 <button
                   onClick={() => setStage("prompt")}

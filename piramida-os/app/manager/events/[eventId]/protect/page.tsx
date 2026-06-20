@@ -48,12 +48,10 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
     getSetting<TwinRoomPosition[]>("twin.room_positions").catch(() => null),
   ]);
 
-  // Build inventory planner rows from requirements + reservation data.
   const inventoryRows = event
     ? await buildInventoryRows(event, shortages)
     : [];
 
-  // Enrich conflicts with AI explanations (non-blocking; fallback to DB title).
   const conflictRows = await Promise.all(
     conflicts.map(async (c) => {
       const explain = await explainConflict({
