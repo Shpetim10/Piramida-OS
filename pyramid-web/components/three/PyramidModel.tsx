@@ -25,7 +25,9 @@ const TARGET_SPAN = 18; // fit the larger horizontal dimension to this many worl
 const TERRAIN_MESH = "mesh-5"; // the Google-Earth snapshot plane — excluded
 
 // ---- the captured pyramid -------------------------------------------------
-function useProcessedModel() {
+// Exported so the exploded "sliced pyramid" view (ExplodedPyramid.tsx) can reuse
+// the exact same processed mesh — lime strips, centring, scale — without reloading.
+export function useProcessedModel() {
   const materials = useLoader(MTLLoader, "/model/piramid.mtl");
   const obj = useLoader(OBJLoader, "/model/piramid.obj", (loader) => {
     materials.preload();

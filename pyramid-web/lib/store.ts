@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { FLOORS, type Floor, type EventInfo } from "./pyramid-data";
 
-export type View = "exterior" | "floor" | "interior";
+export type View = "exterior" | "floor" | "interior" | "exploded";
 
 interface State {
   view: View;
@@ -12,6 +12,8 @@ interface State {
 
   selectFloor: (id: Floor["id"]) => void;
   selectSpace: (id: string) => void;
+  /** enter the exploded "sliced pyramid" overview */
+  explode: () => void;
   back: () => void;
   reset: () => void;
   updateEvent: (spaceId: string, patch: Partial<EventInfo>) => void;
@@ -25,6 +27,7 @@ export const usePyramid = create<State>((set) => ({
 
   selectFloor: (id) => set({ view: "floor", floorId: id, spaceId: null }),
   selectSpace: (id) => set({ view: "interior", spaceId: id }),
+  explode: () => set({ view: "exploded", floorId: null, spaceId: null }),
   back: () =>
     set((s) =>
       s.view === "interior"

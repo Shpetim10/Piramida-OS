@@ -15,7 +15,7 @@ const Scene = dynamic(() => import("./three/Scene"), {
 });
 
 export default function PyramidApp() {
-  const { view, floorId, spaceId } = usePyramid();
+  const { view, floorId, spaceId, explode, reset } = usePyramid();
   const floor = floorId != null ? getFloor(floorId) : undefined;
 
   return (
@@ -32,6 +32,7 @@ export default function PyramidApp() {
           {view === "exterior" && "2026 Site — pick a floor"}
           {view === "floor" && `${floor?.name} — tap a space`}
           {view === "interior" && `Editing event layout`}
+          {view === "exploded" && "Sliced view — tap a level"}
         </div>
       </header>
 
@@ -44,6 +45,19 @@ export default function PyramidApp() {
       <FloorSelector />
       <FloorLegend />
       <InfoPanel />
+
+      {/* Toggle the exploded "sliced pyramid" overview from the exterior. */}
+      {(view === "exterior" || view === "exploded") && (
+        <button
+          className={`view-toggle ${view === "exploded" ? "on" : ""}`}
+          onClick={() => (view === "exploded" ? reset() : explode())}
+        >
+          <span className="view-toggle-icon" aria-hidden>
+            ◤
+          </span>
+          {view === "exploded" ? "Exit sliced view" : "Sliced view"}
+        </button>
+      )}
 
       {/* Real-world geometry: the exterior is a live OpenStreetMap extract. */}
       {view === "exterior" && (

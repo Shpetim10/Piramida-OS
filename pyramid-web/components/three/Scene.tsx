@@ -6,8 +6,9 @@ import { OrbitControls, ContactShadows } from "@react-three/drei";
 import { Group, Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { usePyramid, useResolvedEvent } from "@/lib/store";
-import { getFloor, getSpace } from "@/lib/pyramid-data";
+import { getSpace } from "@/lib/pyramid-data";
 import { PyramidModel } from "./PyramidModel";
+import { ExplodedPyramid } from "./ExplodedPyramid";
 import { FloorSpaces } from "./FloorSpaces";
 import { InteriorRoom } from "./InteriorRoom";
 
@@ -16,6 +17,7 @@ const PRESETS = {
   exterior: { pos: new Vector3(22, 14, 22), tar: new Vector3(0, 2, 0) },
   floor: { pos: new Vector3(0.1, 13, 13), tar: new Vector3(0, 0.5, 0) },
   interior: { pos: new Vector3(0.1, 6.5, 9.5), tar: new Vector3(0, 1, 0) },
+  exploded: { pos: new Vector3(15, 9, 20), tar: new Vector3(0, 4, 0) },
 } as const;
 
 // easing helpers ------------------------------------------------------------
@@ -119,6 +121,14 @@ function Content() {
       <ViewIntro key="exterior" rise={0.8}>
         <PyramidModel />
       </ViewIntro>
+    );
+
+  if (view === "exploded")
+    // The slabs self-animate (explode stagger), so no whole-group ViewIntro.
+    return (
+      <group key="exploded">
+        <ExplodedPyramid />
+      </group>
     );
 
   if (view === "floor" && floorId != null)

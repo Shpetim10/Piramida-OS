@@ -1,48 +1,37 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { FLOORS, usePyramid } from "@/lib/store";
-import type { Floor } from "@/lib/pyramid-data";
 
-// Building order, top → bottom: the park is the apex, the lower level (-1) the
-// wide base. The park has no numeric id, so it always ranks highest.
-const rank = (id: Floor["id"]) => (id === "park" ? 999 : id);
+// The mini view is its own WebGL canvas, so it must be client-only (no SSR) —
+// same pattern as the main Scene import in PyramidApp.
+const FloorSliceMini = dynamic(() => import("../three/FloorSliceMini"), {
+  ssr: false,
+  loading: () => <div className="floor-legend-loading">Slicing…</div>,
+});
 
+// Right-side panel shown while a floor is open: the REAL sliced pyramid (genuine
+// clipped cross-sections) with the current floor highlighted — replacing the old
+// abstract width-graded row stack.
 export function FloorLegend() {
   const view = usePyramid((s) => s.view);
   const floorId = usePyramid((s) => s.floorId);
-  const selectFloor = usePyramid((s) => s.selectFloor);
 
   if (view !== "floor") return null;
 
-  const rows = [...FLOORS].sort((a, b) => rank(b.id) - rank(a.id));
-  const n = rows.length;
+  const current = FLOORS.find((f) => f.id === floorId);
 
   return (
-    <aside className="floor-legend" aria-label="Pyramid floor legend">
-      <div className="floor-legend-title">PIRAMIDA · {n} LEVELS</div>
+    <aside className="floor-legend" aria-label="Sliced pyramid — current floor">
+      <div className="floor-legend-title">SLICED VIEW</div>
 
-      <div className="floor-legend-stack">
-        {rows.map((f, i) => {
-          const active = f.id === floorId;
-          // Width grows from the apex (narrow) to the base (wide).
-          const width = 42 + (i / (n - 1)) * 58; // 42% → 100%
-          return (
-            <button
-              key={String(f.id)}
-              className={`floor-legend-row ${active ? "active" : ""}`}
-              style={{ width: `${width}%`, ["--c" as string]: f.color }}
-              onClick={() => selectFloor(f.id)}
-              aria-current={active ? "true" : undefined}
-              title={f.name}
-            >
-              <span className="floor-legend-dot" />
-              <span className="floor-legend-label">{f.label}</span>
-            </button>
-          );
-        })}
+      <div className="floor-legend-canvas">
+        <FloorSliceMini />
       </div>
 
-      <div className="floor-legend-foot">{rows.find((f) => f.id === floorId)?.name ?? "Select a level"}</div>
+      <div className="floor-legend-foot" style={current ? { color: current.color } : undefined}>
+        {current ? current.name : "Select a level"}
+      </div>
     </aside>
   );
 }

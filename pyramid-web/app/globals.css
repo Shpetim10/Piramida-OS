@@ -140,6 +140,45 @@ body {
   border-color: var(--accent);
 }
 
+/* ---------- sliced-view toggle ---------- */
+.view-toggle {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(21, 24, 33, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: border-color 0.14s, color 0.14s, background 0.14s, transform 0.14s;
+}
+.view-toggle:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.view-toggle.on {
+  border-color: var(--accent);
+  color: #0d0d12;
+  background: var(--accent);
+}
+.view-toggle-icon {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--accent);
+}
+.view-toggle.on .view-toggle-icon {
+  color: #0d0d12;
+}
+
 /* ---------- floor selector ---------- */
 .floor-selector {
   position: absolute;
@@ -199,11 +238,11 @@ body {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  width: clamp(150px, 15vw, 200px);
+  width: clamp(190px, 19vw, 250px);
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 9px;
   padding: 14px 14px 12px;
   background: rgba(21, 24, 33, 0.86);
@@ -218,61 +257,32 @@ body {
   letter-spacing: 1.5px;
   color: var(--muted);
   font-weight: 700;
+  text-align: center;
 }
-.floor-legend-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+/* compact 3D mini sliced-pyramid view */
+.floor-legend-canvas {
+  position: relative;
   width: 100%;
-}
-.floor-legend-row {
-  --c: #888;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: clamp(26px, 4.8vh, 38px);
-  padding: 0 8px;
+  height: clamp(220px, 34vh, 320px);
   border: 1px solid var(--line);
-  border-bottom: 2px solid color-mix(in srgb, var(--c) 55%, transparent);
-  background: var(--surface);
-  border-radius: 9px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, rgba(214, 255, 0, 0.05), rgba(13, 13, 18, 0) 60%), #0d0d12;
+}
+.floor-legend-loading {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  letter-spacing: 1px;
   color: var(--muted);
-  font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
-  opacity: 0.72;
-  transition: transform 0.14s, background 0.14s, color 0.14s, border-color 0.14s, box-shadow 0.14s, opacity 0.14s;
-}
-.floor-legend-row:hover {
-  opacity: 1;
-  color: var(--ink);
-  border-color: var(--c);
-}
-.floor-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--c);
-  flex: none;
-}
-.floor-legend-label {
-  line-height: 1;
-}
-.floor-legend-row.active {
-  opacity: 1;
-  color: #fff;
-  background: color-mix(in srgb, var(--c) 26%, var(--panel));
-  border-color: var(--accent);
-  transform: scale(1.07);
-  box-shadow: 0 0 0 1px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .floor-legend-foot {
   margin-top: 2px;
   max-width: 100%;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--accent);
   text-align: center;
   overflow: hidden;
