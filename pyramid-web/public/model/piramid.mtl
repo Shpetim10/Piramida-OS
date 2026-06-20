@@ -1,0 +1,48 @@
+# Innerscene 3D Viewer export
+newmtl SKP_Vertex_Colors
+Kd 1.000 1.000 1.000
+Ka 0.00 0.00 0.00
+Ks 0.10 0.10 0.10
+Ns 38.4
+d 1.000
+illum 2
+
+newmtl _Color_A01_
+Kd 0.608 0.000 0.000
+Ka 0.00 0.00 0.00
+Ks 0.10 0.10 0.10
+Ns 51.2
+d 1.000
+illum 2
+
+newmtl _2
+Kd 0.467 0.514 0.573
+Ka 0.00 0.00 0.00
+Ks 0.10 0.10 0.10
+Ns 51.2
+d 1.000
+illum 2
+
+newmtl _4
+Kd 0.220 0.239 0.271
+Ka 0.00 0.00 0.00
+Ks 0.10 0.10 0.10
+Ns 51.2
+d 1.000
+illum 2
+
+newmtl _Tile_Various_Tan_
+Kd 0.839 0.820 0.796
+Ka 0.00 0.00 0.00
+Ks 0.10 0.10 0.10
+Ns 51.2
+d 1.000
+illum 2
+
+newmtl Google_Earth_Snapshot1
+Kd 0.533 0.533 0.533
+Ka 0.00 0.00 0.00
+Ks 0.10 0.10 0.10
+Ns 51.2
+d 1.000
+illum 2
