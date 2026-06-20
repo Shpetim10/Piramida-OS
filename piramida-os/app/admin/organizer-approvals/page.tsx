@@ -64,9 +64,9 @@ export default function OrganizerApprovalsPage() {
                 key={a.id}
                 onClick={() => setSelApp(a.id)}
                 style={{
-                  border: `1px solid ${isSel ? "rgba(214,255,0,.35)" : "rgba(255,255,255,.07)"}`,
+                  border: `1px solid ${isSel ? "rgba(200,240,0,.35)" : "rgba(255,255,255,.07)"}`,
                   borderRadius: 14,
-                  background: isSel ? "rgba(214,255,0,.05)" : "#151821",
+                  background: isSel ? "rgba(200,240,0,.05)" : "#151821",
                   padding: 14,
                   cursor: "pointer",
                   width: "100%",
@@ -131,7 +131,7 @@ export default function OrganizerApprovalsPage() {
 
             {detStt === "pending" ? (
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => decide(det.id, "approved")} style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, border: "none", borderRadius: 12, background: A, color: "#0D0D12", font: "700 14px Inter, sans-serif", cursor: "pointer", boxShadow: "0 6px 20px rgba(214,255,0,.2)" }}>
+                <button onClick={() => decide(det.id, "approved")} style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, border: "none", borderRadius: 12, background: A, color: "#0D0D12", font: "700 14px Inter, sans-serif", cursor: "pointer", boxShadow: "0 6px 20px rgba(200,240,0,.2)" }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>
                   Approve organizer
                 </button>

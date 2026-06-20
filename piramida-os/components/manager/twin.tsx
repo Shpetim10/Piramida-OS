@@ -21,7 +21,7 @@ export function PyramidTwin({
   focus?: string;
   onRoom?: (id: string) => void;
 }) {
-  const A = "#D6FF00";
+  const A = "#C8F000";
   const LINE = "#39414F";
   const SOFT = "#222834";
   const MUT = "#7D8799";
@@ -41,8 +41,8 @@ export function PyramidTwin({
         </feMerge>
       </filter>
       <linearGradient id="prg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="rgba(214,255,0,.22)" />
-        <stop offset="1" stopColor="rgba(214,255,0,.04)" />
+        <stop offset="0" stopColor="rgba(200,240,0,.22)" />
+        <stop offset="1" stopColor="rgba(200,240,0,.04)" />
       </linearGradient>
     </defs>
   );
@@ -172,7 +172,7 @@ export function PyramidTwin({
             key={r.id + "z"}
             x={r.x + 9}
             y={r.y + r.h - 9}
-            fill="rgba(214,255,0,.7)"
+            fill="rgba(200,240,0,.7)"
             style={{ font: "500 8px 'JetBrains Mono',monospace", pointerEvents: "none" }}
           >
             {zoneLabel(r.id)}
@@ -184,7 +184,7 @@ export function PyramidTwin({
             key={r.id + "c"}
             x={r.x + 9}
             y={r.y + r.h - 9}
-            fill={active ? "rgba(214,255,0,.7)" : MUT}
+            fill={active ? "rgba(200,240,0,.7)" : MUT}
             style={{ font: "500 9px 'JetBrains Mono',monospace", pointerEvents: "none" }}
           >
             {r.cap === "—" ? "LOBBY" : "CAP " + r.cap}
@@ -195,7 +195,7 @@ export function PyramidTwin({
   });
 
   ch.push(
-    <circle key="apex" cx={300} cy={46} r={3.5} fill={A} filter="url(#pglow)" style={{ animation: "glowPulse 3s ease-in-out infinite" }} />
+    <circle key="apex" cx={300} cy={46} r={3.5} fill="#D6FF00" filter="url(#pglow)" style={{ animation: "glowPulse 3s ease-in-out infinite" }} />
   );
 
   return (
@@ -248,10 +248,10 @@ export function DnaRadar({ dims }: { dims: { s: string; v: number }[] }) {
     ch.push(<line key={"a" + i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(255,255,255,.06)" strokeWidth={1} />);
   });
   const vpts = dims.map((d, i) => pt(i, (R * d.v) / 100).join(",")).join(" ");
-  ch.push(<polygon key="val" points={vpts} fill="rgba(214,255,0,.16)" stroke="#D6FF00" strokeWidth={1.8} strokeLinejoin="round" />);
+  ch.push(<polygon key="val" points={vpts} fill="rgba(200,240,0,.16)" stroke="#C8F000" strokeWidth={1.8} strokeLinejoin="round" />);
   dims.forEach((d, i) => {
     const [x, y] = pt(i, (R * d.v) / 100);
-    ch.push(<circle key={"p" + i} cx={x} cy={y} r={2.6} fill="#D6FF00" />);
+    ch.push(<circle key={"p" + i} cx={x} cy={y} r={2.6} fill="#C8F000" />);
   });
   dims.forEach((d, i) => {
     const [x, y] = pt(i, R + 15);
@@ -277,7 +277,7 @@ export function DnaRadar({ dims }: { dims: { s: string; v: number }[] }) {
 }
 
 export function DecisionGraph() {
-  const A = "#D6FF00";
+  const A = "#C8F000";
   const node = (x: number, y: number, w: number, label: string, sub: string, c?: string) => (
     <g key={label}>
       <rect x={x} y={y} width={w} height={46} rx={9} fill="#151821" stroke={c || "rgba(255,255,255,.12)"} strokeWidth={1.3} />
@@ -300,9 +300,9 @@ export function DecisionGraph() {
   );
   const reqY = 137;
   const ch: React.ReactNode[] = [];
-  ch.push(link(212, reqY, 250, 52, "rgba(214,255,0,.3)", "l1"));
-  ch.push(link(212, reqY, 250, 137, "rgba(214,255,0,.3)", "l2"));
-  ch.push(link(212, reqY, 250, 222, "rgba(214,255,0,.3)", "l3"));
+  ch.push(link(212, reqY, 250, 52, "rgba(200,240,0,.3)", "l1"));
+  ch.push(link(212, reqY, 250, 137, "rgba(200,240,0,.3)", "l2"));
+  ch.push(link(212, reqY, 250, 222, "rgba(200,240,0,.3)", "l3"));
   [52, 137, 222].forEach((y, i) => ch.push(link(430, y + 23, 470, y + 23, undefined, "lb" + i)));
   ch.push(node(40, reqY - 23, 172, "Raw Request", "180 GUESTS · CONF", A));
   ch.push(node(250, 29, 180, "Keynote stage", "→ GREEN ROOM", "#22C55E"));

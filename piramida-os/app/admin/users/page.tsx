@@ -18,7 +18,7 @@ export default function StaffManagementPage() {
         <p style={{ font: "400 14px/1.5 Inter, sans-serif", color: "#AEB5C2", margin: 0, maxWidth: 440 }}>
           Create, edit and disable staff accounts, and assign each one an operational role.
         </p>
-        <Link href="/admin/users/new" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 18px", border: "none", borderRadius: 11, background: "#D6FF00", color: "#0D0D12", font: "700 13px Inter, sans-serif", cursor: "pointer", flex: "none", boxShadow: "0 6px 20px rgba(214,255,0,.18)", textDecoration: "none" }}>
+        <Link href="/admin/users/new" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 18px", border: "none", borderRadius: 11, background: "#C8F000", color: "#0D0D12", font: "700 13px Inter, sans-serif", cursor: "pointer", flex: "none", boxShadow: "0 6px 20px rgba(200,240,0,.18)", textDecoration: "none" }}>
           <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
           Create Staff
         </Link>

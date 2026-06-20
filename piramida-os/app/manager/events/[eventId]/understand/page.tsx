@@ -50,7 +50,7 @@ export default function Page({ params: _params }: { params: Promise<{ eventId: s
           </div>
 
           {/* AI analysis */}
-          <div style={{ border: "1px solid rgba(214,255,0,.2)", borderRadius: 18, background: "radial-gradient(480px 260px at 0% 0%,rgba(214,255,0,.05),#151821)", padding: 22 }}>
+          <div style={{ border: "1px solid rgba(200,240,0,.2)", borderRadius: 18, background: "radial-gradient(480px 260px at 0% 0%,rgba(200,240,0,.05),#151821)", padding: 22 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" stroke={LIME} strokeWidth="1.7" fill="none" strokeLinecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" /></svg>
               <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: LIME, letterSpacing: ".12em" }}>AI ANALYSIS</span>

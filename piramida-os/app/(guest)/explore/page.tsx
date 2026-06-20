@@ -19,7 +19,7 @@ function ExploreInner() {
   return (
     <div>
       <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 40, paddingBottom: 16 }}>
-        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".2em", marginBottom: 13 }}>
+        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".2em", marginBottom: 13 }}>
           EXPLORE THE PYRAMID
         </div>
         <h1 style={{ font: "800 clamp(30px,4.4vw,52px)/1.04 Inter, sans-serif", letterSpacing: "-.03em", margin: "0 0 14px", color: "#fff" }}>
@@ -48,7 +48,7 @@ function ExploreInner() {
             position: "relative",
             border: "1px solid rgba(255,255,255,.08)",
             borderRadius: 20,
-            background: "radial-gradient(700px 420px at 50% 30%,rgba(214,255,0,.05),#0B0E13)",
+            background: "radial-gradient(700px 420px at 50% 30%,rgba(200,240,0,.05),#0B0E13)",
             overflow: "hidden",
             minHeight: "clamp(360px,46vw,560px)",
             display: "flex",
@@ -92,8 +92,8 @@ function ExploreInner() {
                     gap: 8,
                     padding: "9px 13px",
                     borderRadius: 10,
-                    border: `1px solid ${on ? "rgba(214,255,0,.4)" : "rgba(255,255,255,.1)"}`,
-                    background: on ? "rgba(214,255,0,.07)" : "#151821",
+                    border: `1px solid ${on ? "rgba(200,240,0,.4)" : "rgba(255,255,255,.1)"}`,
+                    background: on ? "rgba(200,240,0,.07)" : "#151821",
                     color: on ? "#fff" : "#AEB5C2",
                     font: "600 13px Inter, sans-serif",
                     cursor: "pointer",
@@ -106,7 +106,7 @@ function ExploreInner() {
             })}
           </div>
 
-          <div style={{ border: "1px solid rgba(214,255,0,.25)", borderRadius: 18, background: "linear-gradient(180deg,rgba(214,255,0,.05),#151821)", overflow: "hidden" }}>
+          <div style={{ border: "1px solid rgba(200,240,0,.25)", borderRadius: 18, background: "linear-gradient(180deg,rgba(200,240,0,.05),#151821)", overflow: "hidden" }}>
             <div
               style={{
                 position: "relative",
@@ -148,7 +148,7 @@ function ExploreInner() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {active.examples.map((ex) => (
                   <div key={ex} style={{ display: "flex", alignItems: "center", gap: 10, font: "600 13px Inter, sans-serif", color: "#fff" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 2, background: "#D6FF00" }} />
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: "#C8F000" }} />
                     {ex}
                   </div>
                 ))}

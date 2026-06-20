@@ -15,7 +15,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ profileId:
           <p style={{ font: "400 13px/1.6 Inter, sans-serif", color: "#AEB5C2", margin: "0 0 16px" }}>
             No staff account matches <code style={{ color: "#fff" }}>{profileId}</code>.
           </p>
-          <Link href="/admin/users" style={{ display: "inline-flex", padding: "10px 16px", borderRadius: 10, background: "#D6FF00", color: "#0D0D12", font: "700 13px Inter, sans-serif", textDecoration: "none" }}>
+          <Link href="/admin/users" style={{ display: "inline-flex", padding: "10px 16px", borderRadius: 10, background: "#C8F000", color: "#0D0D12", font: "700 13px Inter, sans-serif", textDecoration: "none" }}>
             Back to staff
           </Link>
         </div>

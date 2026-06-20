@@ -2,7 +2,7 @@
 // No Supabase / AI yet — everything here simulates manager/admin data locally.
 // Ported verbatim from the "Manager Command Center" Claude Design source.
 
-export const LIME = "#D6FF00";
+export const LIME = "#C8F000";
 
 // The flagship event the operational pipeline (Understand → Launch) focuses on.
 export const FOCUS_EVENT_ID = "summit";
@@ -60,7 +60,7 @@ export function occMap(): Record<string, number> {
 
 export function occColor(p: number): string {
   if (p >= 90) return "#EF4444";
-  if (p >= 70) return "#D6FF00";
+  if (p >= 70) return "#C8F000";
   if (p > 0) return "#22C55E";
   return "#39414F";
 }
@@ -406,7 +406,7 @@ export const TASKS = [
 ];
 
 export const TASK_ROLES = ["all", "Event Manager", "Operations", "Inventory", "Technician"];
-export const AVATAR_COLOR: Record<string, string> = { EK: "#D6FF00", ML: "#2A6FDB", AP: "#C0612A", DN: "#7A4BD6" };
+export const AVATAR_COLOR: Record<string, string> = { EK: "#C8F000", ML: "#2A6FDB", AP: "#C0612A", DN: "#7A4BD6" };
 export const TASK_COLUMNS = [
   { id: "todo", label: "To Do", color: "#7D8799" },
   { id: "progress", label: "In Progress", color: "#2A6FDB" },

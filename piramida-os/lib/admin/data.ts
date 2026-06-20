@@ -2,7 +2,7 @@
 // No Supabase / AI — simulates organizer approvals, staff and permissions locally.
 // Ported verbatim from the "Admin Control Center" Claude Design source.
 
-export const LIME = "#D6FF00";
+export const LIME = "#C8F000";
 
 // ---------- Organizer approvals ----------
 export interface OrganizerApplication {
@@ -70,7 +70,7 @@ export const ORGANIZER_APPLICATIONS: OrganizerApplication[] = [
 
 // ---------- Staff ----------
 export const ROLE_COLOR: Record<string, string> = {
-  "Event Manager": "#D6FF00",
+  "Event Manager": "#C8F000",
   "Operations Manager": "#2A6FDB",
   "Inventory Manager": "#7A4BD6",
   Technician: "#C0612A",
@@ -89,7 +89,7 @@ export interface StaffMember {
 }
 
 export const STAFF: StaffMember[] = [
-  { name: "Erida Krasniqi", role: "Event Manager", email: "erida@pyramid.al", last: "2 min ago", ini: "EK", c: "#D6FF00" },
+  { name: "Erida Krasniqi", role: "Event Manager", email: "erida@pyramid.al", last: "2 min ago", ini: "EK", c: "#C8F000" },
   { name: "Marsel Leka", role: "Operations Manager", email: "marsel@pyramid.al", last: "10 min ago", ini: "ML", c: "#2A6FDB" },
   { name: "Drita Nushi", role: "Inventory Manager", email: "drita@pyramid.al", last: "1 hour ago", ini: "DN", c: "#7A4BD6" },
   { name: "Andi Prifti", role: "Technician", email: "andi@pyramid.al", last: "3 hours ago", ini: "AP", c: "#C0612A" },
@@ -120,7 +120,7 @@ export interface RoleDefinition {
 export const ROLE_DEFINITIONS: RoleDefinition[] = [
   {
     role: "Event Manager",
-    c: "#D6FF00",
+    c: "#C8F000",
     scope: "The operational brain — owns the full event lifecycle.",
     caps: [["Review & generate events", 1], ["Allocate spaces & assets", 1], ["Resolve conflicts", 1], ["Run simulation & launch", 1], ["Assign tasks to staff", 1]],
   },

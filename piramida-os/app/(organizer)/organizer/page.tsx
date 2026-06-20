@@ -39,10 +39,10 @@ export default function DashboardPage() {
             gap: 9,
             padding: "14px 24px",
             borderRadius: 12,
-            background: "#D6FF00",
+            background: "#C8F000",
             color: "#0D0D12",
             font: "700 14px Inter, sans-serif",
-            boxShadow: "0 8px 26px rgba(214,255,0,.2)",
+            boxShadow: "0 8px 26px rgba(200,240,0,.2)",
             whiteSpace: "nowrap",
             textDecoration: "none",
           }}
@@ -60,14 +60,14 @@ export default function DashboardPage() {
             <div
               key={k.label}
               style={{
-                border: `1px solid ${k.accent ? "rgba(214,255,0,.25)" : "rgba(255,255,255,.07)"}`,
+                border: `1px solid ${k.accent ? "rgba(200,240,0,.25)" : "rgba(255,255,255,.07)"}`,
                 borderRadius: 18,
-                background: k.accent ? "linear-gradient(180deg,rgba(214,255,0,.06),#151821)" : "#151821",
+                background: k.accent ? "linear-gradient(180deg,rgba(200,240,0,.06),#151821)" : "#151821",
                 padding: 22,
               }}
             >
               <div style={{ font: "500 12px Inter, sans-serif", color: "#7D8799", marginBottom: 14 }}>{k.label}</div>
-              <div style={{ font: "800 clamp(30px,3.4vw,42px)/1 Inter, sans-serif", letterSpacing: "-.03em", color: k.accent ? "#D6FF00" : "#fff" }}>
+              <div style={{ font: "800 clamp(30px,3.4vw,42px)/1 Inter, sans-serif", letterSpacing: "-.03em", color: k.accent ? "#C8F000" : "#fff" }}>
                 {k.value}
               </div>
               <div style={{ font: "500 12px 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 12 }}>{k.sub}</div>
@@ -88,9 +88,9 @@ export default function DashboardPage() {
           alignItems: "start",
         }}
       >
-        <div style={{ border: "1px solid rgba(214,255,0,.22)", borderRadius: 20, background: "linear-gradient(135deg,rgba(214,255,0,.06),#151821 60%)", padding: 26, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: 0, right: 0, width: 240, height: 240, background: "radial-gradient(closest-side,rgba(214,255,0,.12),transparent)", pointerEvents: "none" }} />
-          <div style={{ position: "relative", font: "600 10px 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".16em", marginBottom: 6 }}>
+        <div style={{ border: "1px solid rgba(200,240,0,.22)", borderRadius: 20, background: "linear-gradient(135deg,rgba(200,240,0,.06),#151821 60%)", padding: 26, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, right: 0, width: 240, height: 240, background: "radial-gradient(closest-side,rgba(200,240,0,.12),transparent)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".16em", marginBottom: 6 }}>
             ACTIVE EVENT · IN PLANNING
           </div>
           <h2 style={{ position: "relative", font: "800 clamp(22px,2.6vw,30px)/1.1 Inter, sans-serif", letterSpacing: "-.02em", margin: "6px 0 18px", color: "#fff" }}>
@@ -104,7 +104,7 @@ export default function DashboardPage() {
             ))}
           </div>
           <div style={{ position: "relative", display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/organizer/create" style={{ padding: "12px 20px", borderRadius: 11, background: "#D6FF00", color: "#0D0D12", font: "700 13px Inter, sans-serif", textDecoration: "none" }}>
+            <Link href="/organizer/create" style={{ padding: "12px 20px", borderRadius: 11, background: "#C8F000", color: "#0D0D12", font: "700 13px Inter, sans-serif", textDecoration: "none" }}>
               Edit event
             </Link>
             <Link href="/organizer/requests" style={{ padding: "12px 20px", border: "1px solid rgba(255,255,255,.14)", borderRadius: 11, background: "transparent", color: "#fff", font: "600 13px Inter, sans-serif", textDecoration: "none" }}>
@@ -116,7 +116,7 @@ export default function DashboardPage() {
         <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 20, background: "#151821", padding: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".16em" }}>PENDING REQUESTS</div>
-            <Link href="/organizer/requests" style={{ font: "600 11px Inter, sans-serif", color: "#D6FF00", textDecoration: "none" }}>View all</Link>
+            <Link href="/organizer/requests" style={{ font: "600 11px Inter, sans-serif", color: "#C8F000", textDecoration: "none" }}>View all</Link>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {REQUESTS.map((r) => (

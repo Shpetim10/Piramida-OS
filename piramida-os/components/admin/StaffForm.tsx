@@ -5,7 +5,7 @@ import { useState } from "react";
 import { AdminScreen, useAdminViewport } from "@/components/admin/AdminScreen";
 import { ASSIGNABLE_ROLES } from "@/lib/admin/data";
 
-const A = "#D6FF00";
+const A = "#C8F000";
 
 const fieldLabel: React.CSSProperties = {
   font: "600 9px 'JetBrains Mono', monospace",
@@ -52,7 +52,7 @@ export function StaffForm({
         </Link>
       </div>
 
-      <div style={{ border: "1px solid rgba(214,255,0,.25)", borderRadius: 16, background: "radial-gradient(500px 240px at 100% 0%,rgba(214,255,0,.05),#151821)", padding: 22, maxWidth: 920 }}>
+      <div style={{ border: "1px solid rgba(200,240,0,.25)", borderRadius: 16, background: "radial-gradient(500px 240px at 100% 0%,rgba(200,240,0,.05),#151821)", padding: 22, maxWidth: 920 }}>
         <div style={{ font: "700 14px Inter, sans-serif", color: "#fff", marginBottom: 16 }}>
           {isEdit ? `Edit ${initialName || "staff account"}` : "New staff account"}
         </div>
@@ -68,7 +68,7 @@ export function StaffForm({
           </div>
           <div>
             <div style={fieldLabel}>ROLE</div>
-            <div style={{ padding: "12px 13px", border: "1px solid rgba(214,255,0,.3)", borderRadius: 10, background: "#0F1218", font: "600 13px Inter, sans-serif", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ padding: "12px 13px", border: "1px solid rgba(200,240,0,.3)", borderRadius: 10, background: "#0F1218", font: "600 13px Inter, sans-serif", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               {role}
               <svg width="14" height="14" viewBox="0 0 24 24" stroke="#7D8799" strokeWidth="2" fill="none" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
             </div>
@@ -82,7 +82,7 @@ export function StaffForm({
               <button
                 key={r}
                 onClick={() => setRole(r)}
-                style={{ padding: "8px 13px", borderRadius: 9, border: `1px solid ${active ? A : "rgba(255,255,255,.12)"}`, background: active ? "rgba(214,255,0,.08)" : "transparent", color: active ? "#fff" : "#AEB5C2", font: "600 12px Inter, sans-serif", cursor: "pointer" }}
+                style={{ padding: "8px 13px", borderRadius: 9, border: `1px solid ${active ? A : "rgba(255,255,255,.12)"}`, background: active ? "rgba(200,240,0,.08)" : "transparent", color: active ? "#fff" : "#AEB5C2", font: "600 12px Inter, sans-serif", cursor: "pointer" }}
               >
                 {r}
               </button>

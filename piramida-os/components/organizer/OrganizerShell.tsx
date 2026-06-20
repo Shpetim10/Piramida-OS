@@ -86,8 +86,8 @@ export function OrganizerShell({ children }: { children: React.ReactNode }) {
       <aside style={asideStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "6px 4px 22px" }}>
           <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#D6FF00" strokeWidth="1.6" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#D6FF00" opacity="0.9" />
+            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.6" />
+            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" opacity="0.9" />
           </svg>
           <div style={{ minWidth: 0 }}>
             <div style={{ font: "800 16px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
@@ -124,13 +124,13 @@ export function OrganizerShell({ children }: { children: React.ReactNode }) {
                   borderRadius: 10,
                   font: "600 13.5px Inter, sans-serif",
                   color: active ? "#fff" : "#AEB5C2",
-                  background: active ? "rgba(214,255,0,.07)" : "transparent",
-                  boxShadow: active ? "inset 2px 0 0 #D6FF00" : "none",
+                  background: active ? "rgba(200,240,0,.07)" : "transparent",
+                  boxShadow: active ? "inset 2px 0 0 #C8F000" : "none",
                   textDecoration: "none",
                 }}
               >
                 <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, flex: "none" }}>
-                  <Icon name={it.icon} color={active ? "#D6FF00" : "#7D8799"} />
+                  <Icon name={it.icon} color={active ? "#C8F000" : "#7D8799"} />
                 </span>
                 <span style={{ flex: 1, textAlign: "left" }}>{it.label}</span>
                 <span
@@ -139,7 +139,7 @@ export function OrganizerShell({ children }: { children: React.ReactNode }) {
                     height: 6,
                     borderRadius: "50%",
                     flex: "none",
-                    background: active ? "#D6FF00" : "transparent",
+                    background: active ? "#C8F000" : "transparent",
                   }}
                 />
               </Link>
@@ -251,8 +251,8 @@ export function OrganizerShell({ children }: { children: React.ReactNode }) {
               </svg>
             </button>
             <svg width="24" height="24" viewBox="0 0 34 34" fill="none">
-              <polygon points="17,4 31,29 3,29" stroke="#D6FF00" strokeWidth="1.8" />
-              <polygon points="17,4 24,16.5 10,16.5" fill="#D6FF00" />
+              <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.8" />
+              <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
             </svg>
             <div style={{ font: "800 15px Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
               Organizer Studio

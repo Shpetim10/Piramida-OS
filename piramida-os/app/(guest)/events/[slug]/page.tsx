@@ -87,7 +87,7 @@ export default function EventDetailPage({
           <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, overflow: "hidden", marginBottom: 34 }}>
             {AGENDA.map((a, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 18, padding: "15px 18px", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
-                <span style={{ font: "600 13px 'JetBrains Mono', monospace", color: "#D6FF00", width: 48, flex: "none" }}>{a.time}</span>
+                <span style={{ font: "600 13px 'JetBrains Mono', monospace", color: "#C8F000", width: 48, flex: "none" }}>{a.time}</span>
                 <span style={{ flex: 1, font: "600 14px Inter, sans-serif", color: "#fff" }}>{a.title}</span>
                 <span style={{ font: "500 12px Inter, sans-serif", color: "#7D8799", whiteSpace: "nowrap" }}>{a.room}</span>
               </div>
@@ -147,11 +147,11 @@ export default function EventDetailPage({
                   padding: 15,
                   border: "none",
                   borderRadius: 12,
-                  background: "#D6FF00",
+                  background: "#C8F000",
                   color: "#0D0D12",
                   font: "700 15px Inter, sans-serif",
                   cursor: "pointer",
-                  boxShadow: "0 8px 26px rgba(214,255,0,.2)",
+                  boxShadow: "0 8px 26px rgba(200,240,0,.2)",
                 }}
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none">
@@ -167,19 +167,19 @@ export default function EventDetailPage({
               128 / 180 spots filled
             </div>
             <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.08)", marginTop: 8, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: "71%", background: "#D6FF00", borderRadius: 3 }} />
+              <div style={{ height: "100%", width: "71%", background: "#C8F000", borderRadius: 3 }} />
             </div>
           </div>
 
           <div style={{ border: "1px solid rgba(255,255,255,.08)", borderRadius: 18, background: "#151821", padding: 20 }}>
-            <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".16em", marginBottom: 14 }}>
+            <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".16em", marginBottom: 14 }}>
               YOUR GUEST MAP
             </div>
-            <div style={{ borderRadius: 12, background: "radial-gradient(400px 240px at 50% 30%,rgba(214,255,0,.04),#101319)", padding: 12, marginBottom: 12 }}>
+            <div style={{ borderRadius: 12, background: "radial-gradient(400px 240px at 50% 30%,rgba(200,240,0,.04),#101319)", padding: 12, marginBottom: 12 }}>
               <PyramidTwin selected={["green", "blue", "yellow", "entrance", "common"]} labels showRoutes />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, font: "500 12px Inter, sans-serif", color: "#AEB5C2" }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#D6FF00" }} />
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "#C8F000" }} />
               Entrance → Registration → Green Room
             </div>
           </div>

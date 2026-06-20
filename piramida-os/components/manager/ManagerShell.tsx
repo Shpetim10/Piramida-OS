@@ -7,7 +7,7 @@ import { useViewport } from "@/lib/useViewport";
 import { MgrIcon } from "@/components/manager/twin";
 import { FOCUS_EVENT_ID, FOCUS_EVENT_NAME, SCREEN_LABELS } from "@/lib/manager/data";
 
-const A = "#D6FF00";
+const A = "#C8F000";
 
 // Map the current pathname to a screen key + the event id in scope (if any).
 function resolve(pathname: string): { screen: string; eventId: string } {
@@ -110,7 +110,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           cursor: "pointer",
           font: "600 13.5px Inter, sans-serif",
           color: active ? "#fff" : "#AEB5C2",
-          background: active ? "rgba(214,255,0,.07)" : "transparent",
+          background: active ? "rgba(200,240,0,.07)" : "transparent",
           boxShadow: active ? `inset 2px 0 0 ${A}` : "none",
           textDecoration: "none",
         }}
@@ -173,8 +173,8 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
       <aside style={asideStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "4px 4px 20px" }}>
           <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#D6FF00" strokeWidth="1.6" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#D6FF00" opacity="0.9" />
+            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.6" />
+            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" opacity="0.9" />
           </svg>
           <div style={{ minWidth: 0 }}>
             <div style={{ font: "800 16px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>Pyramid OS</div>
@@ -212,7 +212,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div style={{ paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.06)", display: "flex", alignItems: "center", gap: 11 }}>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#D6FF00,#1F8A5B)", display: "flex", alignItems: "center", justifyContent: "center", font: "700 12px Inter, sans-serif", color: "#0D0D12", flex: "none" }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#C8F000,#1F8A5B)", display: "flex", alignItems: "center", justifyContent: "center", font: "700 12px Inter, sans-serif", color: "#0D0D12", flex: "none" }}>
               EK
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -258,7 +258,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ display: isMobile ? "none" : "inline-flex", alignItems: "center", gap: 9, padding: "8px 13px", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, background: "#151821" }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D6FF00", boxShadow: "0 0 7px #D6FF00", flex: "none" }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C8F000", boxShadow: "0 0 7px #C8F000", flex: "none" }} />
               <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".08em" }}>FOCUS&nbsp;EVENT</span>
               <span style={{ font: "700 12px/1 Inter, sans-serif", color: "#fff" }}>{FOCUS_EVENT_NAME}</span>
             </div>

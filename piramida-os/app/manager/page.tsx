@@ -28,9 +28,9 @@ export default function ManagerDashboardPage() {
         style={{
           position: "relative",
           overflow: "hidden",
-          border: "1px solid rgba(214,255,0,.22)",
+          border: "1px solid rgba(200,240,0,.22)",
           borderRadius: 22,
-          background: "radial-gradient(900px 420px at 18% 0%,rgba(214,255,0,.10),transparent 60%),#101319",
+          background: "radial-gradient(900px 420px at 18% 0%,rgba(200,240,0,.10),transparent 60%),#101319",
           padding: 30,
           marginBottom: 22,
         }}
@@ -38,8 +38,8 @@ export default function ManagerDashboardPage() {
         <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)", backgroundSize: "34px 34px", pointerEvents: "none" }} />
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr auto", gap: 28, alignItems: "center" }}>
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", border: "1px solid rgba(214,255,0,.28)", borderRadius: 100, background: "rgba(214,255,0,.05)", marginBottom: 16 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: A, boxShadow: "0 0 8px #D6FF00" }} />
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", border: "1px solid rgba(200,240,0,.28)", borderRadius: 100, background: "rgba(200,240,0,.05)", marginBottom: 16 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: A, boxShadow: "0 0 8px #C8F000" }} />
               <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: A, letterSpacing: ".16em" }}>OPERATIONAL STATUS · LIVE</span>
             </div>
             <h1 style={{ font: "800 clamp(28px,4vw,46px)/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.03em", margin: "0 0 12px" }}>
@@ -49,7 +49,7 @@ export default function ManagerDashboardPage() {
               3 events in the pipeline. One flagship — the NextGen Startup Summit — is mid-simulation with a single medium conflict standing between it and launch.
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link href={e("simulate")} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 20px", border: "none", borderRadius: 11, background: A, color: "#0D0D12", font: "700 13px Inter, sans-serif", cursor: "pointer", boxShadow: "0 6px 22px rgba(214,255,0,.2)", textDecoration: "none" }}>
+              <Link href={e("simulate")} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 20px", border: "none", borderRadius: 11, background: A, color: "#0D0D12", font: "700 13px Inter, sans-serif", cursor: "pointer", boxShadow: "0 6px 22px rgba(200,240,0,.2)", textDecoration: "none" }}>
                 Open Simulation
                 <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
               </Link>
@@ -77,7 +77,7 @@ export default function ManagerDashboardPage() {
         {KPI_DEF.map((k) => {
           const valColor = k.tone === A ? A : k.tone === "#fff" ? "#fff" : k.tone;
           return (
-            <div key={k.label} style={{ border: `1px solid ${k.tone === A ? "rgba(214,255,0,.22)" : "rgba(255,255,255,.07)"}`, borderRadius: 16, background: k.tone === A ? "linear-gradient(180deg,rgba(214,255,0,.06),#151821)" : "#151821", padding: 18 }}>
+            <div key={k.label} style={{ border: `1px solid ${k.tone === A ? "rgba(200,240,0,.22)" : "rgba(255,255,255,.07)"}`, borderRadius: 16, background: k.tone === A ? "linear-gradient(180deg,rgba(200,240,0,.06),#151821)" : "#151821", padding: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", flex: "none", background: k.tone, boxShadow: `0 0 7px ${k.tone}66` }} />
                 <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>{k.label.toUpperCase()}</span>
@@ -136,7 +136,7 @@ export default function ManagerDashboardPage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {/* Live occupancy twin */}
-          <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, background: "radial-gradient(420px 280px at 50% 30%,rgba(214,255,0,.05),#101319)", overflow: "hidden" }}>
+          <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, background: "radial-gradient(420px 280px at 50% 30%,rgba(200,240,0,.05),#101319)", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 0" }}>
               <div style={{ font: "700 13px Inter, sans-serif", color: "#fff" }}>Live occupancy</div>
               <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>PYRAMID TWIN</div>
@@ -146,7 +146,7 @@ export default function ManagerDashboardPage() {
             </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16, padding: "0 18px 16px" }}>
               <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#22C55E" }}>● UNDER 70%</span>
-              <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#D6FF00" }}>● 70–90%</span>
+              <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000" }}>● 70–90%</span>
               <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#EF4444" }}>● OVER 90%</span>
             </div>
           </div>

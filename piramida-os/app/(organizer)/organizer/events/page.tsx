@@ -24,7 +24,7 @@ export default function MyEventsPage() {
         }}
       >
         <div>
-          <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".2em", marginBottom: 13 }}>
+          <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".2em", marginBottom: 13 }}>
             MY EVENTS
           </div>
           <h1 style={{ font: "800 clamp(28px,4vw,46px)/1.04 Inter, sans-serif", letterSpacing: "-.03em", margin: 0, color: "#fff" }}>
@@ -39,7 +39,7 @@ export default function MyEventsPage() {
             gap: 9,
             padding: "14px 22px",
             borderRadius: 12,
-            background: "#D6FF00",
+            background: "#C8F000",
             color: "#0D0D12",
             font: "700 14px Inter, sans-serif",
             whiteSpace: "nowrap",

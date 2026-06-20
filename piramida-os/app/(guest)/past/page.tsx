@@ -11,7 +11,7 @@ export default function PastEventsPage() {
   return (
     <div>
       <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 40, paddingBottom: 16 }}>
-        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".2em", marginBottom: 13 }}>
+        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".2em", marginBottom: 13 }}>
           EVENT ARCHIVE
         </div>
         <h1 style={{ font: "800 clamp(30px,4.4vw,52px)/1.04 Inter, sans-serif", letterSpacing: "-.03em", margin: "0 0 14px", color: "#fff" }}>

@@ -35,7 +35,7 @@ export default function Page() {
                 SUBMITTED {r.submitted} · ORGANIZER
               </div>
             </div>
-            <span style={{ font: "600 10px 'JetBrains Mono', monospace", letterSpacing: ".06em", color: r.status === "RAW REQUEST" ? "#0D0D12" : "#fff", background: r.status === "RAW REQUEST" ? "#D6FF00" : "#1A1F2B", padding: "5px 9px", borderRadius: 7, flex: "none" }}>
+            <span style={{ font: "600 10px 'JetBrains Mono', monospace", letterSpacing: ".06em", color: r.status === "RAW REQUEST" ? "#0D0D12" : "#fff", background: r.status === "RAW REQUEST" ? "#C8F000" : "#1A1F2B", padding: "5px 9px", borderRadius: 7, flex: "none" }}>
               {r.status}
             </span>
             <div style={{ textAlign: "right", flex: "none", width: 56 }}>

@@ -1,7 +1,7 @@
 // Centralized mock data for the Pyramid OS guest + organizer experiences.
 // No backend / Supabase / AI yet — everything here is deterministic demo data.
 
-export const LIME = "#D6FF00";
+export const LIME = "#C8F000";
 
 export type EventType =
   | "conference"
@@ -218,7 +218,7 @@ export const DASH_STATS = [
 ];
 
 export const MY_EVENTS = [
-  { title: "NextGen Startup Summit 2026", date: "18 Jul 2026", status: "Planning", guests: "180", color: "#D6FF00" },
+  { title: "NextGen Startup Summit 2026", date: "18 Jul 2026", status: "Planning", guests: "180", color: "#C8F000" },
   { title: "Lumen Product Launch", date: "30 Aug 2026", status: "Approved", guests: "120", color: "#22C55E" },
   { title: "Q3 Investor Day", date: "14 Sep 2026", status: "Published", guests: "90", color: "#2A6FDB" },
   { title: "Lumen Summer Mixer", date: "02 Jun 2026", status: "Completed", guests: "140", color: "#7D8799" },

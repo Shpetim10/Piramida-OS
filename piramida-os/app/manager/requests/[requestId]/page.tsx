@@ -37,8 +37,8 @@ export default function Page({ params }: { params: Promise<{ requestId: string }
                 gap: 9,
                 padding: "10px 15px",
                 borderRadius: 11,
-                border: `1px solid ${on ? "rgba(214,255,0,.4)" : "rgba(255,255,255,.1)"}`,
-                background: on ? "rgba(214,255,0,.07)" : "#151821",
+                border: `1px solid ${on ? "rgba(200,240,0,.4)" : "rgba(255,255,255,.1)"}`,
+                background: on ? "rgba(200,240,0,.07)" : "#151821",
                 color: on ? "#fff" : "#AEB5C2",
                 font: "600 13px Inter, sans-serif",
                 cursor: "pointer",
@@ -61,7 +61,7 @@ export default function Page({ params }: { params: Promise<{ requestId: string }
               <div style={{ font: "600 13px Inter, sans-serif", color: "#fff" }}>Sara Kelmendi · Lumen Labs</div>
               <div style={{ font: "500 10px 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 2 }}>SUBMITTED 18 JUN · ORGANIZER</div>
             </div>
-            <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#0D0D12", background: "#D6FF00", padding: "5px 9px", borderRadius: 7 }}>RAW REQUEST</span>
+            <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#0D0D12", background: "#C8F000", padding: "5px 9px", borderRadius: 7 }}>RAW REQUEST</span>
           </div>
           <div style={{ padding: 20 }}>
             <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 10 }}>ORGANIZER&apos;S WORDS</div>
@@ -80,17 +80,17 @@ export default function Page({ params }: { params: Promise<{ requestId: string }
         </div>
 
         {/* Right — AI structured understanding */}
-        <div style={{ border: "1px solid rgba(214,255,0,.22)", borderRadius: 18, background: "radial-gradient(560px 320px at 80% 0%,rgba(214,255,0,.06),#151821)", overflow: "hidden" }}>
+        <div style={{ border: "1px solid rgba(200,240,0,.22)", borderRadius: 18, background: "radial-gradient(560px 320px at 80% 0%,rgba(200,240,0,.06),#151821)", overflow: "hidden" }}>
           <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,.07)", display: "flex", alignItems: "center", gap: 11 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(214,255,0,.12)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" stroke="#D6FF00" strokeWidth="1.7" fill="none" strokeLinecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" /></svg>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(200,240,0,.12)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="#C8F000" strokeWidth="1.7" fill="none" strokeLinecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" /></svg>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ font: "700 13px Inter, sans-serif", color: "#fff" }}>AI Structured Understanding</div>
               <div style={{ font: "500 10px 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 2 }}>PARSED FROM RAW REQUEST</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ font: "800 18px/1 Inter, sans-serif", color: "#D6FF00" }}>94%</div>
+              <div style={{ font: "800 18px/1 Inter, sans-serif", color: "#C8F000" }}>94%</div>
               <div style={{ font: "600 8px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>CONFIDENCE</div>
             </div>
           </div>
@@ -106,8 +106,8 @@ export default function Page({ params }: { params: Promise<{ requestId: string }
             <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 9 }}>DETECTED REQUIREMENTS</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 16 }}>
               {REQUEST_CHIPS.map((c) => (
-                <span key={c} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 8, background: "rgba(214,255,0,.07)", border: "1px solid rgba(214,255,0,.18)", font: "600 11px Inter, sans-serif", color: "#E6E9EF" }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#D6FF00" }} />
+                <span key={c} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 8, background: "rgba(200,240,0,.07)", border: "1px solid rgba(200,240,0,.18)", font: "600 11px Inter, sans-serif", color: "#E6E9EF" }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#C8F000" }} />
                   {c}
                 </span>
               ))}
@@ -123,7 +123,7 @@ export default function Page({ params }: { params: Promise<{ requestId: string }
             </div>
             <Link
               href={`/manager/events/${id}/understand`}
-              style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, padding: 15, border: "none", borderRadius: 12, background: "#D6FF00", color: "#0D0D12", font: "700 14px Inter, sans-serif", cursor: "pointer", boxShadow: "0 8px 26px rgba(214,255,0,.22)", textDecoration: "none", boxSizing: "border-box" }}
+              style={{ width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, padding: 15, border: "none", borderRadius: 12, background: "#C8F000", color: "#0D0D12", font: "700 14px Inter, sans-serif", cursor: "pointer", boxShadow: "0 8px 26px rgba(200,240,0,.22)", textDecoration: "none", boxSizing: "border-box" }}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"><path d="M5 3l2.5 5L13 10.5 7.5 13 5 18l-2.5-5L-3 10.5" /><path d="M5 3l2.5 5L13 10.5 7.5 13 5 18l-2.5-5L-3 10.5" transform="translate(13 3)" /></svg>
               Generate Event &amp; Build Plan

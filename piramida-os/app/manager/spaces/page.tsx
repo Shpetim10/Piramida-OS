@@ -17,7 +17,7 @@ export default function ManagerSpacesPage() {
     <ScreenContainer>
       <div style={{ display: "grid", gridTemplateColumns: spacesCols, gap: 18, alignItems: "start" }}>
         {/* Twin panel */}
-        <div style={{ position: "relative", border: "1px solid rgba(255,255,255,.08)", borderRadius: 22, background: "radial-gradient(700px 460px at 50% 24%,rgba(214,255,0,.06),#0B0E13)", overflow: "hidden" }}>
+        <div style={{ position: "relative", border: "1px solid rgba(255,255,255,.08)", borderRadius: 22, background: "radial-gradient(700px 460px at 50% 24%,rgba(200,240,0,.06),#0B0E13)", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)", backgroundSize: "34px 34px", pointerEvents: "none" }} />
           <div style={{ position: "absolute", top: 16, left: 16, padding: "8px 13px", borderRadius: 9, background: "rgba(13,13,18,.6)", border: "1px solid rgba(255,255,255,.08)" }}>
             <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>PYRAMID TWIN</div>
@@ -65,7 +65,7 @@ export default function ManagerSpacesPage() {
                         font: "700 8px 'JetBrains Mono', monospace",
                         letterSpacing: ".06em",
                         color: free ? "#22C55E" : A,
-                        background: free ? "rgba(34,197,94,.14)" : "rgba(214,255,0,.12)",
+                        background: free ? "rgba(34,197,94,.14)" : "rgba(200,240,0,.12)",
                         padding: "4px 7px",
                         borderRadius: 6,
                       }}

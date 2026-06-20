@@ -102,7 +102,7 @@ export default function Page({ params }: { params: Promise<{ eventId: string }> 
             position: "relative",
             border: "1px solid rgba(255,255,255,.08)",
             borderRadius: 22,
-            background: "radial-gradient(780px 520px at 50% 24%,rgba(214,255,0,.07),#0B0E13)",
+            background: "radial-gradient(780px 520px at 50% 24%,rgba(200,240,0,.07),#0B0E13)",
             overflow: "hidden",
           }}
         >
@@ -143,7 +143,7 @@ export default function Page({ params }: { params: Promise<{ eventId: string }> 
             }}
           >
             <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>ALLOCATED</div>
-            <div style={{ font: "800 16px/1 Inter, sans-serif", color: "#D6FF00", marginTop: 3 }}>
+            <div style={{ font: "800 16px/1 Inter, sans-serif", color: "#C8F000", marginTop: 3 }}>
               {alloc.length}
               <span style={{ fontSize: 11, color: "#7D8799" }}> / 6 rooms</span>
             </div>
@@ -163,9 +163,9 @@ export default function Page({ params }: { params: Promise<{ eventId: string }> 
           {/* Focus room card */}
           <div
             style={{
-              border: "1px solid rgba(214,255,0,.24)",
+              border: "1px solid rgba(200,240,0,.24)",
               borderRadius: 18,
-              background: "radial-gradient(420px 240px at 100% 0%,rgba(214,255,0,.07),#151821)",
+              background: "radial-gradient(420px 240px at 100% 0%,rgba(200,240,0,.07),#151821)",
               padding: 20,
             }}
           >
@@ -197,7 +197,7 @@ export default function Page({ params }: { params: Promise<{ eventId: string }> 
                 <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".08em", marginTop: 4 }}>OCCUPANCY</div>
               </div>
               <div>
-                <div style={{ font: "800 20px/1 Inter, sans-serif", color: "#D6FF00" }}>{fr.conf}%</div>
+                <div style={{ font: "800 20px/1 Inter, sans-serif", color: "#C8F000" }}>{fr.conf}%</div>
                 <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".08em", marginTop: 4 }}>AI CONFIDENCE</div>
               </div>
             </div>
@@ -211,10 +211,10 @@ export default function Page({ params }: { params: Promise<{ eventId: string }> 
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" stroke="#D6FF00" strokeWidth="1.8" fill="none" strokeLinecap="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" stroke="#C8F000" strokeWidth="1.8" fill="none" strokeLinecap="round">
                   <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
                 </svg>
-                <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".1em" }}>WHY THE AI CHOSE THIS</span>
+                <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".1em" }}>WHY THE AI CHOSE THIS</span>
               </div>
               <p style={{ font: "400 13px/1.6 Inter, sans-serif", color: "#E6E9EF", margin: 0, textWrap: "pretty" }}>{fr.reason}</p>
             </div>
@@ -244,7 +244,7 @@ export default function Page({ params }: { params: Promise<{ eventId: string }> 
           <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, background: "#151821", padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ font: "700 13px Inter, sans-serif", color: "#fff" }}>Allocation summary</div>
-              <span style={{ font: "700 11px 'JetBrains Mono', monospace", color: "#D6FF00" }}>{allocCapacity} cap · 180 guests</span>
+              <span style={{ font: "700 11px 'JetBrains Mono', monospace", color: "#C8F000" }}>{allocCapacity} cap · 180 guests</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {allocList.map((r) => (

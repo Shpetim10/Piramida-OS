@@ -24,7 +24,7 @@ export default function ProfilePage() {
   return (
     <div>
       <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 44, paddingBottom: 16 }}>
-        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".2em", marginBottom: 13 }}>
+        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".2em", marginBottom: 13 }}>
           PROFILE
         </div>
         <h1 style={{ font: "800 clamp(28px,4vw,46px)/1.04 Inter, sans-serif", letterSpacing: "-.03em", margin: 0, color: "#fff" }}>
@@ -82,7 +82,7 @@ export default function ProfilePage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
               {TRACK.map((t) => (
                 <div key={t.label}>
-                  <div style={{ font: "800 28px Inter, sans-serif", color: t.accent ? "#D6FF00" : "#fff", letterSpacing: "-.03em" }}>{t.value}</div>
+                  <div style={{ font: "800 28px Inter, sans-serif", color: t.accent ? "#C8F000" : "#fff", letterSpacing: "-.03em" }}>{t.value}</div>
                   <div style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", marginTop: 6 }}>{t.label}</div>
                 </div>
               ))}
@@ -105,7 +105,7 @@ export default function ProfilePage() {
                 }}
               >
                 <span style={{ font: "600 13px Inter, sans-serif", color: "#fff" }}>{p}</span>
-                <span style={{ width: 38, height: 22, borderRadius: 11, background: "#D6FF00", position: "relative", flex: "none" }}>
+                <span style={{ width: 38, height: 22, borderRadius: 11, background: "#C8F000", position: "relative", flex: "none" }}>
                   <span style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#0D0D12" }} />
                 </span>
               </div>

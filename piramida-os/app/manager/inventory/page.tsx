@@ -11,7 +11,7 @@ export default function ManagerInventoryPage() {
       {/* Summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 14, marginBottom: 20 }}>
         {INV_SUMMARY.map((s) => (
-          <div key={s.label} style={{ border: `1px solid ${s.tone === A ? "rgba(214,255,0,.2)" : "rgba(255,255,255,.07)"}`, borderRadius: 16, background: "#151821", padding: 18 }}>
+          <div key={s.label} style={{ border: `1px solid ${s.tone === A ? "rgba(200,240,0,.2)" : "rgba(255,255,255,.07)"}`, borderRadius: 16, background: "#151821", padding: 18 }}>
             <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginBottom: 12 }}>{s.label.toUpperCase()}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
               <span style={{ font: "800 30px/1 Inter, sans-serif", letterSpacing: "-.03em", color: s.tone }}>{s.value}</span>

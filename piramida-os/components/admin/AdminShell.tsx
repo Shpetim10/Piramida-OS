@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useViewport } from "@/lib/useViewport";
 import { ADMIN_LABELS } from "@/lib/admin/data";
 
-const A = "#D6FF00";
+const A = "#C8F000";
 
 // Admin Control Center icon set (distinct from the Manager set).
 export function AdminIcon({ name, color = "currentColor" }: { name: string; color?: string }) {
@@ -92,8 +92,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <aside style={asideStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "4px 4px 22px" }}>
           <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#D6FF00" strokeWidth="1.6" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#D6FF00" opacity="0.9" />
+            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.6" />
+            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" opacity="0.9" />
           </svg>
           <div style={{ minWidth: 0 }}>
             <div style={{ font: "800 16px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>Pyramid OS</div>
@@ -121,7 +121,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 cursor: "pointer",
                 font: "600 13.5px Inter, sans-serif",
                 color: active ? "#fff" : "#AEB5C2",
-                background: active ? "rgba(214,255,0,.07)" : "transparent",
+                background: active ? "rgba(200,240,0,.07)" : "transparent",
                 boxShadow: active ? `inset 2px 0 0 ${A}` : "none",
                 textDecoration: "none",
               }}

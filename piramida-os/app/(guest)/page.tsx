@@ -43,7 +43,7 @@ export default function HomePage() {
             position: "absolute",
             inset: 0,
             background:
-              "radial-gradient(820px 520px at 50% 8%,rgba(214,255,0,.10),transparent 60%)",
+              "radial-gradient(820px 520px at 50% 8%,rgba(200,240,0,.10),transparent 60%)",
             pointerEvents: "none",
           }}
         />
@@ -66,14 +66,14 @@ export default function HomePage() {
               alignItems: "center",
               gap: 9,
               padding: "7px 14px",
-              border: "1px solid rgba(214,255,0,.28)",
+              border: "1px solid rgba(200,240,0,.28)",
               borderRadius: 100,
-              background: "rgba(214,255,0,.05)",
+              background: "rgba(200,240,0,.05)",
               marginBottom: 24,
             }}
           >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D6FF00", boxShadow: "0 0 8px #D6FF00" }} />
-            <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".18em" }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C8F000", boxShadow: "0 0 8px #C8F000" }} />
+            <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".18em" }}>
               THE PYRAMID OF TIRANA · LIVE
             </span>
           </div>
@@ -87,7 +87,7 @@ export default function HomePage() {
             }}
           >
             Step inside a building that
-            <span style={{ color: "#D6FF00" }}> hosts experiences</span>
+            <span style={{ color: "#C8F000" }}> hosts experiences</span>
           </h1>
           <p
             style={{
@@ -138,10 +138,10 @@ export default function HomePage() {
               gap: 9,
               padding: "15px 26px",
               borderRadius: 12,
-              background: "#D6FF00",
+              background: "#C8F000",
               color: "#0D0D12",
               font: "700 15px Inter, sans-serif",
-              boxShadow: "0 8px 30px rgba(214,255,0,.22)",
+              boxShadow: "0 8px 30px rgba(200,240,0,.22)",
               textDecoration: "none",
             }}
           >
@@ -246,9 +246,9 @@ export default function HomePage() {
           style={{
             position: "relative",
             overflow: "hidden",
-            border: "1px solid rgba(214,255,0,.22)",
+            border: "1px solid rgba(200,240,0,.22)",
             borderRadius: 22,
-            background: "linear-gradient(120deg,rgba(214,255,0,.08),#151821 55%)",
+            background: "linear-gradient(120deg,rgba(200,240,0,.08),#151821 55%)",
             padding: "clamp(28px,5vw,52px)",
             textAlign: "center",
           }}
@@ -260,7 +260,7 @@ export default function HomePage() {
               right: -40,
               width: 280,
               height: 280,
-              background: "radial-gradient(closest-side,rgba(214,255,0,.14),transparent)",
+              background: "radial-gradient(closest-side,rgba(200,240,0,.14),transparent)",
               pointerEvents: "none",
             }}
           />
@@ -298,10 +298,10 @@ export default function HomePage() {
               gap: 9,
               padding: "16px 30px",
               borderRadius: 13,
-              background: "#D6FF00",
+              background: "#C8F000",
               color: "#0D0D12",
               font: "700 16px Inter, sans-serif",
-              boxShadow: "0 10px 36px rgba(214,255,0,.26)",
+              boxShadow: "0 10px 36px rgba(200,240,0,.26)",
               textDecoration: "none",
             }}
           >

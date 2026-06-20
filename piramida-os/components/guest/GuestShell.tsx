@@ -59,8 +59,8 @@ export function GuestShell({ children }: { children: React.ReactNode }) {
           }}
         >
           <svg width="30" height="30" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#D6FF00" strokeWidth="1.7" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#D6FF00" />
+            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
+            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
           </svg>
           <div style={{ textAlign: "left" }}>
             <div
@@ -102,7 +102,7 @@ export function GuestShell({ children }: { children: React.ReactNode }) {
                   padding: "9px 4px",
                   font: "600 14px Inter, sans-serif",
                   color: active ? "#fff" : "#AEB5C2",
-                  borderBottom: `2px solid ${active ? "#D6FF00" : "transparent"}`,
+                  borderBottom: `2px solid ${active ? "#C8F000" : "transparent"}`,
                   textDecoration: "none",
                 }}
               >
@@ -121,11 +121,11 @@ export function GuestShell({ children }: { children: React.ReactNode }) {
               gap: 8,
               padding: "11px 18px",
               borderRadius: 10,
-              background: "#D6FF00",
+              background: "#C8F000",
               color: "#0D0D12",
               font: "700 13px Inter, sans-serif",
               whiteSpace: "nowrap",
-              boxShadow: "0 6px 22px rgba(214,255,0,.2)",
+              boxShadow: "0 6px 22px rgba(200,240,0,.2)",
               textDecoration: "none",
             }}
           >

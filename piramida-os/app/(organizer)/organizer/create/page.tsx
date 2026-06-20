@@ -93,8 +93,8 @@ export default function CreateEventPage() {
         cursor: "pointer",
         padding: "13px 14px",
         borderRadius: 12,
-        border: `1px solid ${on ? "rgba(214,255,0,.4)" : "rgba(255,255,255,.09)"}`,
-        background: on ? "rgba(214,255,0,.06)" : "#151821",
+        border: `1px solid ${on ? "rgba(200,240,0,.4)" : "rgba(255,255,255,.09)"}`,
+        background: on ? "rgba(200,240,0,.06)" : "#151821",
         width: "100%",
       }}
     >
@@ -110,8 +110,8 @@ export default function CreateEventPage() {
             justifyContent: "center",
             font: "700 11px Inter, sans-serif",
             color: "#0D0D12",
-            background: on ? "#D6FF00" : "transparent",
-            border: `1px solid ${on ? "#D6FF00" : "rgba(255,255,255,.2)"}`,
+            background: on ? "#C8F000" : "transparent",
+            border: `1px solid ${on ? "#C8F000" : "rgba(255,255,255,.2)"}`,
           }}
         >
           {on ? "✓" : ""}
@@ -137,9 +137,9 @@ export default function CreateEventPage() {
             paddingBottom: 54,
           }}
         >
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(720px 440px at 50% 6%,rgba(214,255,0,.08),transparent 60%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(720px 440px at 50% 6%,rgba(200,240,0,.08),transparent 60%)", pointerEvents: "none" }} />
           <div style={{ position: "relative", textAlign: "center", maxWidth: 760, margin: "0 auto" }}>
-            <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".2em", marginBottom: 14 }}>
+            <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".2em", marginBottom: 14 }}>
               CREATE EVENT
             </div>
             <h1 style={{ font: "800 clamp(28px,4.4vw,48px)/1.04 Inter, sans-serif", letterSpacing: "-.03em", margin: "0 0 12px", color: "#fff", textWrap: "balance" }}>
@@ -201,7 +201,7 @@ export default function CreateEventPage() {
                     gap: 9,
                     padding: "13px 22px",
                     borderRadius: 12,
-                    background: "#D6FF00",
+                    background: "#C8F000",
                     color: "#0D0D12",
                     font: "700 14px Inter, sans-serif",
                     cursor: "pointer",
@@ -225,7 +225,7 @@ export default function CreateEventPage() {
               <div style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".16em" }}>
                 CREATE EVENT · CONVERSATION
               </div>
-              <button onClick={() => setStage("prompt")} style={{ font: "600 12px Inter, sans-serif", color: "#D6FF00", background: "none", border: "none", cursor: "pointer" }}>
+              <button onClick={() => setStage("prompt")} style={{ font: "600 12px Inter, sans-serif", color: "#C8F000", background: "none", border: "none", cursor: "pointer" }}>
                 ↺ Re-describe
               </button>
             </div>
@@ -235,10 +235,10 @@ export default function CreateEventPage() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "rgba(214,255,0,.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "rgba(200,240,0,.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {sparkle}
               </div>
-              <div style={{ maxWidth: 600, padding: "14px 18px", borderRadius: "4px 16px 16px 16px", background: "rgba(214,255,0,.05)", border: "1px solid rgba(214,255,0,.18)", font: "400 15px/1.55 Inter, sans-serif", color: "#AEB5C2" }}>
+              <div style={{ maxWidth: 600, padding: "14px 18px", borderRadius: "4px 16px 16px 16px", background: "rgba(200,240,0,.05)", border: "1px solid rgba(200,240,0,.18)", font: "400 15px/1.55 Inter, sans-serif", color: "#AEB5C2" }}>
                 Got it — I&apos;ve highlighted{" "}
                 <b style={{ color: "#fff" }}>{rooms.length} recommended spaces</b> in the
                 Pyramid and built a live quote. Adjust attendees, duration or services on
@@ -265,7 +265,7 @@ export default function CreateEventPage() {
                   position: "relative",
                   border: "1px solid rgba(255,255,255,.08)",
                   borderRadius: 20,
-                  background: "radial-gradient(680px 420px at 50% 35%,rgba(214,255,0,.06),#0B0E13)",
+                  background: "radial-gradient(680px 420px at 50% 35%,rgba(200,240,0,.06),#0B0E13)",
                   overflow: "hidden",
                   minHeight: "clamp(320px,40vw,460px)",
                   display: "flex",
@@ -275,7 +275,7 @@ export default function CreateEventPage() {
                 }}
               >
                 <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)", backgroundSize: "38px 38px" }} />
-                <div style={{ position: "absolute", top: 16, left: 16, padding: "7px 12px", borderRadius: 8, background: "rgba(13,13,18,.6)", border: "1px solid rgba(255,255,255,.08)", font: "600 10px 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".1em" }}>
+                <div style={{ position: "absolute", top: 16, left: 16, padding: "7px 12px", borderRadius: 8, background: "rgba(13,13,18,.6)", border: "1px solid rgba(255,255,255,.08)", font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".1em" }}>
                   RECOMMENDED SPACES
                 </div>
                 <div style={{ position: "relative", width: "100%", maxWidth: 520 }}>
@@ -289,7 +289,7 @@ export default function CreateEventPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {reasonBullets.map((b) => (
                     <div key={b.room} style={{ display: "flex", gap: 10 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: 2, background: "#D6FF00", flex: "none", marginTop: 6 }} />
+                      <span style={{ width: 7, height: 7, borderRadius: 2, background: "#C8F000", flex: "none", marginTop: 6 }} />
                       <div style={{ font: "400 13px/1.5 Inter, sans-serif", color: "#AEB5C2" }}>
                         <b style={{ color: "#fff" }}>{b.room}</b> — {b.text}
                       </div>
@@ -306,7 +306,7 @@ export default function CreateEventPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ font: "600 13px Inter, sans-serif", color: "#fff" }}>Attendees</span>
-                  <span style={{ font: "700 15px 'JetBrains Mono', monospace", color: "#D6FF00" }}>{attendees}</span>
+                  <span style={{ font: "700 15px 'JetBrains Mono', monospace", color: "#C8F000" }}>{attendees}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
                   <button onClick={() => setAttendees((v) => Math.max(20, v - 10))} style={stepBtn}>−</button>
@@ -332,8 +332,8 @@ export default function CreateEventPage() {
                         style={{
                           padding: "9px 14px",
                           borderRadius: 9,
-                          border: `1px solid ${on ? "#D6FF00" : "rgba(255,255,255,.1)"}`,
-                          background: on ? "#D6FF00" : "transparent",
+                          border: `1px solid ${on ? "#C8F000" : "rgba(255,255,255,.1)"}`,
+                          background: on ? "#C8F000" : "transparent",
                           color: on ? "#0D0D12" : "#AEB5C2",
                           font: "600 12px Inter, sans-serif",
                           cursor: "pointer",
@@ -360,8 +360,8 @@ export default function CreateEventPage() {
                 </div>
               </div>
 
-              <div style={{ border: "1px solid rgba(214,255,0,.22)", borderRadius: 18, background: "linear-gradient(180deg,rgba(214,255,0,.05),#151821)", padding: 20 }}>
-                <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".16em", marginBottom: 14 }}>
+              <div style={{ border: "1px solid rgba(200,240,0,.22)", borderRadius: 18, background: "linear-gradient(180deg,rgba(200,240,0,.05),#151821)", padding: 20 }}>
+                <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".16em", marginBottom: 14 }}>
                   LIVE QUOTE
                 </div>
                 {roomLines.map((l) => (
@@ -387,7 +387,7 @@ export default function CreateEventPage() {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0 0", font: "800 24px Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
                   <span>Total</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#D6FF00" }}>€{fmt(total)}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#C8F000" }}>€{fmt(total)}</span>
                 </div>
               </div>
 
@@ -404,11 +404,11 @@ export default function CreateEventPage() {
                     padding: 15,
                     border: "none",
                     borderRadius: 12,
-                    background: "#D6FF00",
+                    background: "#C8F000",
                     color: "#0D0D12",
                     font: "700 14px Inter, sans-serif",
                     cursor: "pointer",
-                    boxShadow: "0 8px 26px rgba(214,255,0,.2)",
+                    boxShadow: "0 8px 26px rgba(200,240,0,.2)",
                   }}
                 >
                   Approve &amp; send for approval
@@ -452,10 +452,10 @@ export default function CreateEventPage() {
             <div style={{ display: "inline-flex", flexDirection: "column", gap: 10, border: "1px solid rgba(255,255,255,.08)", borderRadius: 16, background: "#151821", padding: "18px 22px", textAlign: "left", marginBottom: 28, minWidth: 300 }}>
               <div style={summaryRow}><span>Spaces</span><span style={{ color: "#fff" }}>{summaryRooms}</span></div>
               <div style={summaryRow}><span>Attendees</span><span style={{ color: "#fff" }}>{attendees}</span></div>
-              <div style={summaryRow}><span>Estimated total</span><span style={{ color: "#D6FF00", fontFamily: "'JetBrains Mono', monospace" }}>€{fmt(total)}</span></div>
+              <div style={summaryRow}><span>Estimated total</span><span style={{ color: "#C8F000", fontFamily: "'JetBrains Mono', monospace" }}>€{fmt(total)}</span></div>
             </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-              <Link href="/organizer/requests" style={{ padding: "14px 24px", borderRadius: 12, background: "#D6FF00", color: "#0D0D12", font: "700 14px Inter, sans-serif", textDecoration: "none" }}>
+              <Link href="/organizer/requests" style={{ padding: "14px 24px", borderRadius: 12, background: "#C8F000", color: "#0D0D12", font: "700 14px Inter, sans-serif", textDecoration: "none" }}>
                 View in Requests
               </Link>
               <Link href="/organizer" style={{ padding: "14px 24px", border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, background: "transparent", color: "#fff", font: "600 14px Inter, sans-serif", textDecoration: "none" }}>

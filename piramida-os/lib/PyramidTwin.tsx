@@ -22,7 +22,7 @@ const ROOMS: TwinRoom[] = [
   { id: "entrance", name: "Entrance", cap: "—", x: 262, y: 360, w: 76, h: 24, status: "available" },
 ];
 
-const A = "#D6FF00";
+const A = "#C8F000";
 const LINE = "#39414F";
 const SOFT = "#222834";
 const MUT = "#7D8799";
@@ -62,8 +62,8 @@ export function PyramidTwin({
         </feMerge>
       </filter>
       <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="rgba(214,255,0,.22)" />
-        <stop offset="1" stopColor="rgba(214,255,0,.04)" />
+        <stop offset="0" stopColor="rgba(200,240,0,.22)" />
+        <stop offset="1" stopColor="rgba(200,240,0,.04)" />
       </linearGradient>
     </defs>
   );
@@ -186,7 +186,7 @@ export function PyramidTwin({
             key={`${r.id}c`}
             x={r.x + 9}
             y={r.y + r.h - 9}
-            fill={active ? "rgba(214,255,0,.7)" : MUT}
+            fill={active ? "rgba(200,240,0,.7)" : MUT}
             style={{ font: "500 9px 'JetBrains Mono', monospace" }}
           >
             {r.cap === "—" ? "LOBBY" : `CAP ${r.cap}`}
@@ -202,7 +202,7 @@ export function PyramidTwin({
       cx={300}
       cy={46}
       r={hero ? 4 : 3}
-      fill={A}
+      fill="#D6FF00"
       filter={`url(#${glowId})`}
       style={{ animation: "glowPulse 3s ease-in-out infinite" }}
     />

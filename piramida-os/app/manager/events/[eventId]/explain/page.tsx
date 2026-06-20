@@ -58,7 +58,7 @@ export default function Page({ params }: { params: Promise<{ eventId: string }> 
                     padding: "9px 14px",
                     borderRadius: 9,
                     border: `1px solid ${active ? A : "rgba(255,255,255,.1)"}`,
-                    background: active ? "rgba(214,255,0,.08)" : "transparent",
+                    background: active ? "rgba(200,240,0,.08)" : "transparent",
                     color: active ? "#fff" : "#AEB5C2",
                     font: "600 12px Inter, sans-serif",
                     cursor: "pointer",

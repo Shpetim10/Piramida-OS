@@ -60,7 +60,7 @@ export default function Page(_props: { params: Promise<{ eventId: string }> }) {
           </div>
           <div style={{ display: "flex", gap: 16, marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.06)" }}>
             <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#2A6FDB" }}>▮ AVAILABLE</span>
-            <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#D6FF00" }}>▮ RESERVED</span>
+            <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000" }}>▮ RESERVED</span>
             <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#EF4444" }}>▮ SHORTAGE</span>
           </div>
         </div>
@@ -110,8 +110,8 @@ export default function Page(_props: { params: Promise<{ eventId: string }> }) {
                   </span>
                 </div>
                 <p style={{ font: "400 13px/1.6 Inter, sans-serif", color: "#AEB5C2", margin: "0 0 12px" }}>{c.explain}</p>
-                <div style={{ padding: 13, borderRadius: 12, background: "rgba(214,255,0,.05)", border: "1px solid rgba(214,255,0,.2)", borderLeft: "3px solid #D6FF00", marginBottom: 13 }}>
-                  <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".1em", marginBottom: 6 }}>AI RECOMMENDATION</div>
+                <div style={{ padding: 13, borderRadius: 12, background: "rgba(200,240,0,.05)", border: "1px solid rgba(200,240,0,.2)", borderLeft: "3px solid #C8F000", marginBottom: 13 }}>
+                  <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".1em", marginBottom: 6 }}>AI RECOMMENDATION</div>
                   <p style={{ font: "500 13px/1.5 Inter, sans-serif", color: "#E6E9EF", margin: 0 }}>{c.rec}</p>
                   <div style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", marginTop: 8 }}>
                     Impact if applied: <span style={{ font: "700 12px Inter, sans-serif", color: c.ic }}>{c.impact}</span>
@@ -129,7 +129,7 @@ export default function Page(_props: { params: Promise<{ eventId: string }> }) {
                     font: "700 13px Inter, sans-serif",
                     background: done ? "rgba(34,197,94,.14)" : A,
                     color: done ? "#22C55E" : "#0D0D12",
-                    ...(done ? {} : { boxShadow: "0 6px 20px rgba(214,255,0,.2)" }),
+                    ...(done ? {} : { boxShadow: "0 6px 20px rgba(200,240,0,.2)" }),
                   }}
                 >
                   {done ? "Resolution applied" : "Apply AI resolution"}

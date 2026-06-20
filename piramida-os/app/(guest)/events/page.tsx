@@ -16,7 +16,7 @@ export default function EventsPage() {
   return (
     <div>
       <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 40, paddingBottom: 8 }}>
-        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".2em", marginBottom: 13 }}>
+        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".2em", marginBottom: 13 }}>
           PUBLIC EVENTS
         </div>
         <h1 style={{ font: "800 clamp(30px,4.4vw,52px)/1.04 Inter, sans-serif", letterSpacing: "-.03em", margin: "0 0 14px", color: "#fff" }}>
@@ -36,8 +36,8 @@ export default function EventsPage() {
                 style={{
                   padding: "9px 16px",
                   borderRadius: 100,
-                  border: `1px solid ${on ? "#D6FF00" : "rgba(255,255,255,.12)"}`,
-                  background: on ? "#D6FF00" : "transparent",
+                  border: `1px solid ${on ? "#C8F000" : "rgba(255,255,255,.12)"}`,
+                  background: on ? "#C8F000" : "transparent",
                   color: on ? "#0D0D12" : "#AEB5C2",
                   font: "600 13px Inter, sans-serif",
                   cursor: "pointer",

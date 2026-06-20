@@ -10,7 +10,7 @@ export default function RequestsPage() {
   return (
     <div>
       <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 44, paddingBottom: 16 }}>
-        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#D6FF00", letterSpacing: ".2em", marginBottom: 13 }}>
+        <div style={{ font: "600 11px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".2em", marginBottom: 13 }}>
           REQUESTS
         </div>
         <h1 style={{ font: "800 clamp(28px,4vw,46px)/1.04 Inter, sans-serif", letterSpacing: "-.03em", margin: "0 0 14px", color: "#fff" }}>
