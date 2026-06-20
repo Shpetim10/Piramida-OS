@@ -5,6 +5,13 @@
 /.pnp
 .pnp.js
 
+# build artifacts and dependencies in any subdirectory
+node_modules/
+.next/
+out/
+build/
+.turbo/
+
 # testing
 /coverage
 
@@ -34,3 +41,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/generated/prisma
