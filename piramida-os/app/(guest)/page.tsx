@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { EventCard } from "@/components/EventCard";
-import { PyramidTwin } from "@/lib/PyramidTwin";
+import { Pyramid3D } from "@/components/pyramid3d/Pyramid3D";
+import { Reveal } from "@/components/Reveal";
+import { LetterReveal } from "@/components/LetterReveal";
 import { useViewport } from "@/lib/useViewport";
 import {
   HOME_STATS,
@@ -19,149 +20,159 @@ const arrow = (
 );
 
 export default function HomePage() {
-  const router = useRouter();
   const { isMobile } = useViewport();
   const padX = isMobile ? 18 : 52;
   const pastPreview = PAST_EVENTS.slice(0, 3);
 
   return (
     <div>
-      {/* Hero */}
+      {/* Hero — the lone real Pyramid, large, slowly rotating, on pure black.
+          Click anywhere on it to open the full interactive view. */}
       <section
         style={{
           position: "relative",
           overflow: "hidden",
+          height: isMobile ? "calc(100svh - 60px)" : "calc(100vh - 60px)",
+        }}
+      >
+        {/* Full-bleed 3D pyramid. Spans the full viewport width; pointerEvents:none
+            so it never traps scroll — the Link overlay below carries the click. */}
+        <div style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}>
+          <Pyramid3D mode="ambient" />
+        </div>
+
+        {/* Top fades from the header into black; bottom fades into black so the
+            pyramid emerges from and dissolves back into darkness. */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 1,
+            pointerEvents: "none",
+            background:
+              "linear-gradient(to bottom,#0D0D12 0%,rgba(13,13,18,0) 20%,rgba(13,13,18,0) 76%,#0D0D12 100%)",
+          }}
+        />
+        {/* soft lime glow near the top — the logo accent */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 1,
+            background:
+              "radial-gradient(900px 540px at 50% 2%,rgba(200,240,0,.12),transparent 58%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Click-through to the full interactive pyramid (floors, rooms, search).
+            It's a link (anchor), so wheel/touch scroll still passes to the page. */}
+        <Link
+          href="/explore"
+          aria-label="Open the full interactive Pyramid"
+          style={{ position: "absolute", inset: 0, zIndex: 2, display: "block", cursor: "pointer" }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: isMobile ? 26 : 36,
+              textAlign: "center",
+              font: "600 11px/1 'JetBrains Mono', monospace",
+              color: "#C8F000",
+              letterSpacing: ".26em",
+              textShadow: "0 2px 12px rgba(0,0,0,.7)",
+            }}
+          >
+            CLICK TO ENTER THE PYRAMID
+          </span>
+        </Link>
+      </section>
+
+      {/* Hero copy — hidden at first, revealed as you scroll down past the pyramid */}
+      <section
+        style={{
+          position: "relative",
           paddingLeft: padX,
           paddingRight: padX,
-          paddingTop: isMobile ? 34 : 56,
-          paddingBottom: 40,
+          paddingTop: isMobile ? 6 : 10,
+          paddingBottom: isMobile ? 30 : 44,
           textAlign: "center",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(820px 520px at 50% 8%,rgba(200,240,0,.10),transparent 60%)",
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)",
-            backgroundSize: "50px 50px",
-            maskImage: "radial-gradient(circle at 50% 30%,#000,transparent 72%)",
-            WebkitMaskImage: "radial-gradient(circle at 50% 30%,#000,transparent 72%)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ position: "relative", zIndex: 2, maxWidth: 780, margin: "0 auto" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 9,
-              padding: "7px 14px",
-              border: "1px solid rgba(200,240,0,.28)",
-              borderRadius: 100,
-              background: "rgba(200,240,0,.05)",
-              marginBottom: 24,
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C8F000", boxShadow: "0 0 8px #C8F000" }} />
-            <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".18em" }}>
-              THE PYRAMID OF TIRANA · LIVE
-            </span>
-          </div>
+        <div style={{ maxWidth: 780, margin: "0 auto" }}>
+          {/* Title reveals letter-by-letter as it scrolls into view */}
           <h1
             style={{
               font: "800 clamp(34px,6vw,66px)/1.02 Inter, sans-serif",
               letterSpacing: "-.035em",
               margin: "0 0 18px",
-              color: "#fff",
-              textWrap: "balance",
+              color: "#C8F000",
             }}
           >
-            Step inside a building that
-            <span style={{ color: "#C8F000" }}> hosts experiences</span>
+            <LetterReveal
+              segments={[
+                { text: "Step inside a building that" },
+                { text: "hosts experiences", color: "#D6FF00" },
+              ]}
+            />
           </h1>
-          <p
-            style={{
-              font: "400 clamp(15px,1.6vw,18px)/1.6 Inter, sans-serif",
-              color: "#AEB5C2",
-              maxWidth: 540,
-              margin: "0 auto 14px",
-              textWrap: "pretty",
-            }}
-          >
-            Explore every room of the Pyramid in 2.5D, discover what&apos;s on, and
-            register in seconds. Tap a room to look inside.
-          </p>
-        </div>
-        <div
-          style={{
-            position: "relative",
-            zIndex: 2,
-            maxWidth: 760,
-            margin: "18px auto 0",
-            animation: "floatY 8s ease-in-out infinite",
-          }}
-        >
-          <PyramidTwin
-            hero
-            selected={["green", "blue", "yellow", "entrance"]}
-            showRoutes
-            labels={false}
-            onRoom={(id) => router.push(`/explore?room=${id}`)}
-          />
-        </div>
-        <div
-          style={{
-            position: "relative",
-            zIndex: 3,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 14,
-            justifyContent: "center",
-            marginTop: 8,
-          }}
-        >
-          <Link
-            href="/explore"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 9,
-              padding: "15px 26px",
-              borderRadius: 12,
-              background: "#C8F000",
-              color: "#0D0D12",
-              font: "700 15px Inter, sans-serif",
-              boxShadow: "0 8px 30px rgba(200,240,0,.22)",
-              textDecoration: "none",
-            }}
-          >
-            Explore the Pyramid
-            {arrow}
-          </Link>
-          <Link
-            href="/events"
-            style={{
-              padding: "15px 24px",
-              border: "1px solid rgba(255,255,255,.14)",
-              borderRadius: 12,
-              background: "rgba(255,255,255,.03)",
-              color: "#fff",
-              font: "600 15px Inter, sans-serif",
-              textDecoration: "none",
-            }}
-          >
-            Browse events
-          </Link>
+          <Reveal delay={0.18}>
+            <p
+              style={{
+                font: "400 clamp(15px,1.6vw,18px)/1.6 Inter, sans-serif",
+                color: "#AEB5C2",
+                maxWidth: 540,
+                margin: "0 auto 22px",
+                textWrap: "pretty",
+              }}
+            >
+              Explore every room of the Pyramid in interactive 3D, discover
+              what&apos;s on, and register in seconds.
+            </p>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 14,
+                justifyContent: "center",
+              }}
+            >
+              <Link
+                href="/explore"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 9,
+                  padding: "15px 26px",
+                  borderRadius: 12,
+                  background: "#C8F000",
+                  color: "#0D0D12",
+                  font: "700 15px Inter, sans-serif",
+                  boxShadow: "0 8px 30px rgba(200,240,0,.22)",
+                  textDecoration: "none",
+                }}
+              >
+                Explore the Pyramid
+                {arrow}
+              </Link>
+              <Link
+                href="/events"
+                style={{
+                  padding: "15px 24px",
+                  border: "1px solid rgba(255,255,255,.14)",
+                  borderRadius: 12,
+                  background: "rgba(255,255,255,.03)",
+                  color: "#fff",
+                  font: "600 15px Inter, sans-serif",
+                  textDecoration: "none",
+                }}
+              >
+                Browse events
+              </Link>
+            </div>
+          </Reveal>
         </div>
       </section>
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useViewport } from "@/lib/useViewport";
+import { BrandMark } from "@/components/BrandLogo";
 
 const NAV = [
   { href: "/", label: "Home" },
@@ -58,10 +59,7 @@ export function GuestShell({ children }: { children: React.ReactNode }) {
             textDecoration: "none",
           }}
         >
-          <svg width="30" height="30" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
-          </svg>
+          <BrandMark height={30} />
           <div style={{ textAlign: "left" }}>
             <div
               style={{

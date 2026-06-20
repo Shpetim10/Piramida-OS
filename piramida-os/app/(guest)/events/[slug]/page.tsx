@@ -3,7 +3,32 @@
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useViewport } from "@/lib/useViewport";
+<<<<<<< Updated upstream
 import { PyramidTwin } from "@/components/manager/twin";
+=======
+import { recRooms, ROOM_NAME } from "@/lib/data";
+
+type AgendaItem = {
+  title: string;
+  description: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  space: string | null;
+};
+
+type PublishedEvent = {
+  slug: string;
+  title: string | null;
+  description: string | null;
+  start: string | null;
+  end: string | null;
+  venue: string | null;
+  registrationOpen: boolean;
+  capacity: number | null;
+  remainingCapacity: number | null;
+  agendaItems: AgendaItem[];
+};
+>>>>>>> Stashed changes
 
 const LIME = "#C8F000";
 
@@ -124,6 +149,22 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
     );
   }
 
+<<<<<<< Updated upstream
+=======
+  const filledSpots = event.capacity != null && event.remainingCapacity != null
+    ? event.capacity - event.remainingCapacity
+    : null;
+  const fillPct = event.capacity && filledSpots != null
+    ? Math.round((filledSpots / event.capacity) * 100)
+    : null;
+
+  const startDate = event.start ? new Date(event.start) : null;
+  const endDate = event.end ? new Date(event.end) : null;
+
+  // Guest map highlights the real 3D rooms recommended for this event's size.
+  const guestRooms = recRooms(event.capacity ?? 180);
+
+>>>>>>> Stashed changes
   return (
     <div>
       {/* Hero */}
@@ -362,11 +403,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
               YOUR GUEST MAP
             </div>
             <div style={{ borderRadius: 12, background: "radial-gradient(400px 240px at 50% 30%,rgba(200,240,0,.04),#101319)", padding: 12, marginBottom: 12 }}>
-              <PyramidTwin selected={["green", "blue", "yellow", "entrance", "common"]} labels showRoutes />
+              <PyramidTwin selected={guestRooms} labels showRoutes />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, font: "500 12px Inter, sans-serif", color: "#AEB5C2" }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: LIME }} />
-              Entrance → Registration → Green Room
+              Your spaces · {guestRooms.map((id) => ROOM_NAME[id]).filter(Boolean).join(" → ")}
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { ProfileStatus, ProfileType, type RoleCode } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { DEMO_PERSONAS, DEMO_COOKIE } from "@/lib/demo/personas";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -120,23 +121,11 @@ export default async function LoginPage({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 11,
             textDecoration: "none",
             marginBottom: 22,
           }}
         >
-          <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
-          </svg>
-          <div style={{ textAlign: "left" }}>
-            <div style={{ font: "800 17px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
-              Pyramid OS
-            </div>
-            <div style={{ font: "600 8px/1.4 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".22em", marginTop: 3 }}>
-              PYRAMID OF TIRANA
-            </div>
-          </div>
+          <BrandLogo height={84} />
         </Link>
 
         <div
