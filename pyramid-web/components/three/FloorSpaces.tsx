@@ -1,11 +1,57 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { RoundedBox, Html } from "@react-three/drei";
-import { Group } from "three";
+import { RoundedBox, Html, Instances, Instance } from "@react-three/drei";
+import { Color, Group } from "three";
 import { getFloor, type EventSpace } from "@/lib/pyramid-data";
 import { usePyramid } from "@/lib/store";
+
+const ACCENT = "#d6ff00"; // Pyramid OS lime
+const TRIM = "#eef1f5"; // light window/door trim (cabin style)
+const GLASS = "#86a8bd"; // muted slate-blue glass
+
+/** Tenant cubes recede: desaturate + lift the brand colour toward a cool light grey. */
+const mutedColor = (hex: string) => new Color(hex).lerp(new Color("#c7cdd6"), 0.5).getStyle();
+/** Darken a brand colour toward slate (door panels, recesses). */
+const darken = (hex: string, amt: number) => new Color(hex).lerp(new Color("#1c2128"), amt).getStyle();
+
+/** Tiny seeded PRNG so the park tree-ring is deterministic across renders. */
+function mulberry32(seed: number) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// One stable scatter of low-poly trees ringing the building plate (computed once).
+const TREES = (() => {
+  const rng = mulberry32(0x50594d44);
+  const out: { x: number; z: number; s: number; ry: number; tint: number }[] = [];
+  const COUNT = 48;
+  for (let i = 0; i < COUNT; i++) {
+    const a = (i / COUNT) * Math.PI * 2 + (rng() - 0.5) * 0.16;
+    const r = 9.0 + rng() * 3.4;
+    out.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, s: 0.78 + rng() * 0.7, ry: rng() * Math.PI * 2, tint: rng() });
+  }
+  return out;
+})();
+const LEAF_LIGHT = new Color("#86b35c");
+const LEAF_DARK = new Color("#5d8f43");
+
+/** 1–2 letter fallback drawn from the tenant name when no logo is supplied. */
+function initialsOf(name: string): string {
+  const words = name
+    .replace(/[^\p{L}\p{N} ]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return "•";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
 
 const ATRIUM_R = 1.5; // open central atrium radius
 const HALL_INNER = 1.7; // where radial halls start (just outside the atrium)
@@ -41,6 +87,70 @@ function Rise({ delay = 0, children }: { delay?: number; children: React.ReactNo
   );
 }
 
+/**
+ * Classic teardrop location pin hovering above a block, carrying the tenant's
+ * logo (or initials fallback). Shared by SpaceCube + StairsSpace.
+ *  - tenant pins are quiet, light heads that recede;
+ *  - bookable pins get a vivid accent head + pulse so the eye lands on them.
+ * `occlude` + `distanceFactor` keep it zoom-scaled and hidden behind geometry.
+ */
+function SpacePin({
+  space,
+  bookable,
+  y,
+  onSelect,
+}: {
+  space: EventSpace;
+  bookable: boolean;
+  y: number;
+  onSelect: () => void;
+}) {
+  const initials = useMemo(() => initialsOf(space.name), [space.name]);
+
+  // Bookable: vivid filled head in the space colour. Tenant: light head, colour
+  // only in the glyph so it stays muted against the dark scene.
+  const headStyle = bookable
+    ? { background: space.color, color: "#fff" }
+    : { color: new Color(space.color).lerp(new Color("#11151d"), 0.32).getStyle() };
+
+  const inner = space.logo ? (
+    <img className="map-pin-logo" src={space.logo} alt={space.name} />
+  ) : (
+    <span className="map-pin-initials">{initials}</span>
+  );
+
+  const pin = (
+    <div
+      className={`map-pin ${bookable ? "bookable" : "tenant"}`}
+      title={space.name}
+      onClick={(e) => {
+        // url links handle their own navigation; otherwise drive selection.
+        if (!space.url) {
+          e.stopPropagation();
+          if (bookable) onSelect();
+        }
+      }}
+    >
+      {bookable && <span className="map-pin-pulse" aria-hidden />}
+      <span className="map-pin-head" style={headStyle}>
+        <span className="map-pin-inner">{inner}</span>
+      </span>
+    </div>
+  );
+
+  return (
+    <Html position={[0, y, 0]} center distanceFactor={14} occlude>
+      {space.url ? (
+        <a className="map-pin-link" href={space.url} target="_blank" rel="noreferrer noopener">
+          {pin}
+        </a>
+      ) : (
+        pin
+      )}
+    </Html>
+  );
+}
+
 /** App-style radial layer of colour-coded tenant cubes for the selected floor. */
 export function FloorSpaces({ floorId }: { floorId: number | "park" }) {
   const floor = getFloor(floorId);
@@ -49,6 +159,9 @@ export function FloorSpaces({ floorId }: { floorId: number | "park" }) {
 
   return (
     <group>
+      {/* soft daylight park: near-white ground, greenery ring, walkways, trees */}
+      <ParkEnvironment />
+
       {/* base disc — white-to-gray concrete interior floor (slightly enlarged) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
         <circleGeometry args={[8.2, 64]} />
@@ -125,6 +238,158 @@ function Hall({ angle, reach }: { angle: number; reach: number }) {
   );
 }
 
+/** Soft daylight park around the building plate: a near-white ground, a subtle
+ *  greenery ring, faint radial walkways and a low-poly tree ring — echoing the
+ *  real aerial while keeping the cubes the focus. Kept cheap (instanced trees,
+ *  flat planes). */
+function ParkEnvironment() {
+  return (
+    <group>
+      {/* near-white park ground, far beyond the building plate */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} receiveShadow>
+        <circleGeometry args={[19, 72]} />
+        <meshStandardMaterial color="#e9efe4" roughness={1} metalness={0} />
+      </mesh>
+      {/* greenery ring band hugging the plate */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.055, 0]}>
+        <ringGeometry args={[7.9, 15.5, 90]} />
+        <meshStandardMaterial color="#d4e3c6" roughness={1} />
+      </mesh>
+      {/* faint radial walkways crossing the green toward the plate */}
+      {Array.from({ length: 8 }, (_, i) => {
+        const ang = (i / 8) * 360 + 22.5;
+        const r0 = 7.9;
+        const r1 = 15.0;
+        const len = r1 - r0;
+        const cr = (r0 + r1) / 2;
+        const rad = (ang * Math.PI) / 180;
+        return (
+          <group key={i} position={[Math.cos(rad) * cr, -0.045, Math.sin(rad) * cr]} rotation={[0, faceRotY(ang), 0]}>
+            <mesh receiveShadow>
+              <boxGeometry args={[1.05, 0.02, len]} />
+              <meshStandardMaterial color="#eef2ec" roughness={1} />
+            </mesh>
+          </group>
+        );
+      })}
+      <TreeRing />
+    </group>
+  );
+}
+
+/** Instanced low-poly trees (2 draw calls): a trunk + a flat-shaded canopy. */
+function TreeRing() {
+  return (
+    <group>
+      <Instances limit={TREES.length} castShadow receiveShadow>
+        <cylinderGeometry args={[0.06, 0.08, 0.5, 6]} />
+        <meshStandardMaterial color="#977a52" roughness={1} />
+        {TREES.map((t, i) => (
+          <Instance key={i} position={[t.x, 0.25 * t.s, t.z]} scale={t.s} rotation={[0, t.ry, 0]} />
+        ))}
+      </Instances>
+      <Instances limit={TREES.length} castShadow>
+        <icosahedronGeometry args={[0.52, 0]} />
+        <meshStandardMaterial roughness={0.92} flatShading />
+        {TREES.map((t, i) => (
+          <Instance
+            key={i}
+            position={[t.x, 0.84 * t.s, t.z]}
+            scale={t.s * (0.9 + t.tint * 0.25)}
+            rotation={[t.tint * 2.2, t.ry, t.tint * 1.3]}
+            color={LEAF_LIGHT.clone().lerp(LEAF_DARK, t.tint)}
+          />
+        ))}
+      </Instances>
+    </group>
+  );
+}
+
+/** One stylized window: a light trim plane, a glass pane and a thin mullion.
+ *  Oriented in its own group so local +z is the outward wall normal. */
+function FacadeWindow({ ww, wh }: { ww: number; wh: number }) {
+  return (
+    <>
+      <mesh>
+        <planeGeometry args={[ww * 1.22, wh * 1.18]} />
+        <meshStandardMaterial color={TRIM} roughness={0.85} metalness={0.02} />
+      </mesh>
+      <mesh position={[0, 0, 0.004]}>
+        <planeGeometry args={[ww, wh]} />
+        <meshStandardMaterial color={GLASS} roughness={0.18} metalness={0.45} emissive={GLASS} emissiveIntensity={0.1} />
+      </mesh>
+      <mesh position={[0, 0, 0.007]}>
+        <planeGeometry args={[ww * 0.07, wh]} />
+        <meshStandardMaterial color={TRIM} roughness={0.85} />
+      </mesh>
+    </>
+  );
+}
+
+/** Parametric cabin facade: a door on the atrium-facing wall plus window panes
+ *  on the side + back walls. Fully derived from [w,h,d] and built from flat
+ *  planes flush on the surface, so it scales to every block and NEVER changes
+ *  the block's footprint (the RoundedBox keeps `space.size`). */
+function CubeFacade({ w, h, d, color, door = true }: { w: number; h: number; d: number; color: string; door?: boolean }) {
+  const eps = 0.016;
+  const panel = useMemo(() => darken(color, 0.5), [color]);
+  const winY = h * 0.03;
+  const winH = Math.min(h * 0.34, 0.62);
+
+  // window counts scale with each wall's length
+  const sideN = Math.max(1, Math.min(3, Math.round(d / 1.0)));
+  const sideW = Math.min(0.34, (d * 0.72) / sideN);
+  const sidePos = Array.from({ length: sideN }, (_, i) => (i - (sideN - 1) / 2) * (d / (sideN + 0.5)));
+
+  const backN = Math.max(1, Math.min(3, Math.round(w / 1.0)));
+  const backW = Math.min(0.34, (w * 0.72) / backN);
+  const backPos = Array.from({ length: backN }, (_, i) => (i - (backN - 1) / 2) * (w / (backN + 0.5)));
+
+  const doorW = Math.min(0.5, w * 0.24);
+  const doorH = Math.min(h * 0.52, h - 0.1);
+
+  return (
+    <group>
+      {/* door — front wall facing the atrium (local -z) */}
+      {door && (
+        <group position={[0, -h / 2 + doorH / 2 + 0.02, -(d / 2 + eps)]} rotation={[0, Math.PI, 0]}>
+          <mesh>
+            <planeGeometry args={[doorW * 1.34, doorH * 1.06]} />
+            <meshStandardMaterial color={TRIM} roughness={0.85} />
+          </mesh>
+          <mesh position={[0, -0.01, 0.004]}>
+            <planeGeometry args={[doorW, doorH]} />
+            <meshStandardMaterial color={panel} roughness={0.55} metalness={0.05} />
+          </mesh>
+          <mesh position={[doorW * 0.3, 0, 0.008]}>
+            <circleGeometry args={[Math.max(0.018, doorW * 0.05), 14]} />
+            <meshStandardMaterial color={TRIM} metalness={0.4} roughness={0.3} />
+          </mesh>
+        </group>
+      )}
+
+      {/* side walls (±x) */}
+      {sidePos.map((pz, i) => (
+        <group key={`px-${i}`} position={[w / 2 + eps, winY, pz]} rotation={[0, Math.PI / 2, 0]}>
+          <FacadeWindow ww={sideW} wh={winH} />
+        </group>
+      ))}
+      {sidePos.map((pz, i) => (
+        <group key={`nx-${i}`} position={[-(w / 2 + eps), winY, pz]} rotation={[0, -Math.PI / 2, 0]}>
+          <FacadeWindow ww={sideW} wh={winH} />
+        </group>
+      ))}
+
+      {/* back wall (+z) */}
+      {backPos.map((px, i) => (
+        <group key={`bz-${i}`} position={[px, winY, d / 2 + eps]}>
+          <FacadeWindow ww={backW} wh={winH} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
 /** Floor-0 staircase space — a clean grey climbable flight; click to open the
  *  stair-talk (50 people, screen, no chairs). Modelled after the reference. */
 function StairsSpace({ space, onSelect, index = 0 }: { space: EventSpace; onSelect: () => void; index?: number }) {
@@ -168,12 +433,7 @@ function StairsSpace({ space, onSelect, index = 0 }: { space: EventSpace; onSele
         })}
       </group>
 
-      <Html position={[0, rise * steps + 0.5, 0]} center distanceFactor={14} occlude>
-        <div className="space-pin has-event" onClick={onSelect}>
-          <span className="space-pin-name">{space.name}</span>
-          <span className="space-pin-dot" style={{ background: space.color }} />
-        </div>
-      </Html>
+      <SpacePin space={space} bookable={!!space.eventable} y={rise * steps + 0.6} onSelect={onSelect} />
       </Rise>
     </group>
   );
@@ -234,15 +494,40 @@ function SpaceCube({ space, onSelect, lift = 0, index = 0 }: { space: EventSpace
           document.body.style.cursor = "auto";
         }}
       >
-        <RoundedBox args={space.size} radius={0.06} smoothness={4} castShadow receiveShadow>
-          <meshStandardMaterial
-            color={bookable ? space.color : "#aeb6c0"}
-            roughness={0.7}
-            metalness={0.02}
-            emissive={space.color}
-            emissiveIntensity={bookable && hover ? 0.14 : 0}
-          />
+        <RoundedBox args={space.size} radius={0.1} smoothness={5} castShadow receiveShadow>
+          {bookable ? (
+            // HERO: vivid, saturated, glossy, with an emissive glow that lifts on hover.
+            <meshStandardMaterial
+              color={space.color}
+              roughness={0.34}
+              metalness={0.14}
+              emissive={space.color}
+              emissiveIntensity={hover ? 0.42 : 0.22}
+            />
+          ) : (
+            // CONTEXT: desaturated + lightened, fully opaque so it reads as a
+            // quiet building yet recedes against the bright bookable cubes.
+            <meshStandardMaterial color={mutedColor(space.color)} roughness={0.82} metalness={0.02} />
+          )}
         </RoundedBox>
+
+        {/* cabin facade — door toward the atrium + windows on the other walls */}
+        <CubeFacade w={w} h={h} d={d} color={space.color} door={!space.glassFront} />
+
+        {/* faint lime accent rim hugging the base of bookable blocks — draws the eye */}
+        {bookable && (
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -h / 2 + 0.012, 0]}>
+            <ringGeometry args={[Math.max(w, d) / 2 + 0.04, Math.max(w, d) / 2 + 0.15, 56]} />
+            <meshStandardMaterial
+              color={ACCENT}
+              emissive={ACCENT}
+              emissiveIntensity={hover ? 1.0 : 0.65}
+              transparent
+              opacity={hover ? 0.9 : 0.6}
+              toneMapped={false}
+            />
+          </mesh>
+        )}
 
         {/* glazed entry facing the atrium (local -z faces the centre) */}
         {space.glassFront && (
@@ -253,16 +538,7 @@ function SpaceCube({ space, onSelect, lift = 0, index = 0 }: { space: EventSpace
         )}
       </group>
 
-      <Html position={[0, space.size[1] / 2 + 0.55, 0]} center distanceFactor={14} occlude>
-        <div className={`space-pin ${bookable ? "has-event" : "disabled"}`} onClick={() => bookable && onSelect()}>
-          <span className="space-pin-name">{space.name}</span>
-          {bookable ? (
-            <span className="space-pin-dot" style={{ background: space.color }} />
-          ) : (
-            <span className="space-pin-lock">🔒</span>
-          )}
-        </div>
-      </Html>
+      <SpacePin space={space} bookable={bookable} y={space.size[1] / 2 + 0.6} onSelect={onSelect} />
       </Rise>
     </group>
   );

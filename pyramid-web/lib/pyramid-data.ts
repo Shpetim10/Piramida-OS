@@ -48,6 +48,10 @@ export interface EventSpace {
   stairs?: boolean;
   /** only `eventable` spaces can host an event */
   eventable?: boolean;
+  /** optional brand logo for the pin head (path under public/logos/…). Empty → initials fallback. */
+  logo?: string;
+  /** optional tenant website — when set, the pin becomes an external link. */
+  url?: string;
   /** chair bounds — the slider/nudges are clamped to these so chairs never overflow */
   minChairs?: number;
   maxChairs?: number;

@@ -160,6 +160,14 @@ export default function Scene() {
   const back = usePyramid((s) => s.back);
   const view = usePyramid((s) => s.view);
 
+  // Only the floor park is daytime. The exterior is back to a soft dark backdrop
+  // (a calm charcoal, not the harsh near-black void); exploded + interior stay dark.
+  const floorView = view === "floor";
+  const exteriorView = view === "exterior";
+  const daylight = floorView;
+
+  const bg = floorView ? "#edf1ec" : exteriorView ? "#1e222a" : "#0d0d12";
+
   return (
     <Canvas
       shadows
@@ -167,13 +175,15 @@ export default function Scene() {
       dpr={[1, 2]}
       onPointerMissed={() => view !== "exterior" && back()}
     >
-      <color attach="background" args={["#0d0d12"]} />
-      <fog attach="fog" args={["#0d0d12", 30, 85]} />
+      <color attach="background" args={[bg]} />
+      <fog attach="fog" args={[bg, floorView ? 46 : 30, floorView ? 120 : exteriorView ? 95 : 85]} />
 
-      <hemisphereLight args={["#dce8ff", "#1a1f2b", 1.05]} />
+      <hemisphereLight
+        args={[daylight ? "#ffffff" : "#dce8ff", daylight ? "#cdd8c8" : "#1a1f2b", daylight ? 1.45 : 1.05]}
+      />
       <directionalLight
         position={[12, 18, 8]}
-        intensity={1.6}
+        intensity={daylight ? 2.0 : 1.6}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-20}
@@ -181,13 +191,20 @@ export default function Scene() {
         shadow-camera-top={20}
         shadow-camera-bottom={-20}
       />
-      <ambientLight intensity={0.42} />
+      <ambientLight intensity={daylight ? 0.8 : 0.42} />
 
       <Suspense fallback={null}>
         <Content />
       </Suspense>
 
-      <ContactShadows position={[0, 0, 0]} opacity={0.4} scale={40} blur={2} far={12} />
+      <ContactShadows
+        position={[0, 0, 0]}
+        opacity={floorView ? 0.5 : exteriorView ? 0.42 : 0.4}
+        scale={40}
+        blur={2}
+        far={12}
+        color={floorView ? "#5a6b52" : "#000000"}
+      />
 
       <OrbitControls
         ref={controlsRef}
