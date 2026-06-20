@@ -1,144 +1,178 @@
-"use client";
+import { detectConflicts } from "@/lib/services/conflicts";
+import { detectAssetShortages } from "@/lib/services/reservations";
+import { getEvent } from "@/lib/services/events";
+import { explainConflict } from "@/lib/ai/explainer";
+import { getLaunchReadiness } from "@/lib/services/launch-readiness";
+import { getSetting } from "@/lib/services/settings";
+import { buildTwinOverlays, type TwinRoomPosition } from "@/lib/manager/twin-overlays";
+import { ProtectClient } from "./ProtectClient";
 
-import { useState } from "react";
-import { ScreenContainer, useMgrViewport } from "@/components/manager/ScreenContainer";
-import { LIME, PLANNER, CONFLICTS } from "@/lib/manager/data";
+const SEV_COLOR: Record<string, string> = {
+  CRITICAL: "#EF4444",
+  HIGH: "#EF4444",
+  MEDIUM: "#F59E0B",
+  LOW: "#2A6FDB",
+};
 
-const A = LIME;
+const IMPACT_TEXT: Record<string, string> = {
+  CRITICAL: "Critical — must fix before launch",
+  HIGH: "High — blocks launch gate",
+  MEDIUM: "Medium — warning gate",
+  LOW: "Low — advisory only",
+};
 
-export default function Page(_props: { params: Promise<{ eventId: string }> }) {
-  const { isMobile } = useMgrViewport();
-  const [resolved, setResolved] = useState<string[]>([]);
+const IMPACT_COLOR: Record<string, string> = {
+  CRITICAL: "#EF4444",
+  HIGH: "#EF4444",
+  MEDIUM: "#F59E0B",
+  LOW: "#22C55E",
+};
 
-  const openConflicts = 4 - resolved.length;
-  const conflictCountColor = openConflicts > 0 ? "#EF4444" : "#22C55E";
-  const protectCols = isMobile ? "1fr" : "0.9fr 1.1fr";
+const FALLBACK_ROOM_POSITIONS: TwinRoomPosition[] = [
+  { slug: "main-corridor", name: "Main Corridor", x: 236, y: 150, w: 128, h: 48, color: "#7A4BD6" },
+  { slug: "green-room", name: "Green Room", x: 182, y: 218, w: 112, h: 58, color: "#22C55E" },
+  { slug: "yellow-room", name: "Yellow Room", x: 306, y: 218, w: 112, h: 58, color: "#C9A227" },
+  { slug: "blue-room", name: "Blue Room", x: 128, y: 300, w: 158, h: 54, color: "#2A6FDB" },
+  { slug: "orange-room", name: "Orange Room", x: 314, y: 300, w: 158, h: 54, color: "#C0612A" },
+  { slug: "entrance", name: "Entrance", x: 262, y: 360, w: 76, h: 24, color: "#AEB5C2" },
+];
+
+export default async function Page({ params }: { params: Promise<{ eventId: string }> }) {
+  const { eventId } = await params;
+
+  const [event, conflicts, shortages, readiness, roomPositions] = await Promise.all([
+    getEvent(eventId).catch(() => null),
+    detectConflicts(eventId),
+    detectAssetShortages(eventId).catch(() => []),
+    getLaunchReadiness(eventId).catch(() => null),
+    getSetting<TwinRoomPosition[]>("twin.room_positions").catch(() => null),
+  ]);
+
+  // Build inventory planner rows from requirements + reservation data.
+  const inventoryRows = event
+    ? await buildInventoryRows(event, shortages)
+    : [];
+
+  // Enrich conflicts with AI explanations (non-blocking; fallback to DB title).
+  const conflictRows = await Promise.all(
+    conflicts.map(async (c) => {
+      const explain = await explainConflict({
+        type: c.type,
+        severity: c.severity,
+        title: c.title,
+        detail: (c.detail ?? {}) as Record<string, unknown>,
+        suggestionLabel: c.suggestions[0]?.label,
+      }).catch(() => c.title);
+      return {
+        id: c.id,
+        sev: c.severity,
+        sc: SEV_COLOR[c.severity] ?? "#7D8799",
+        title: c.title,
+        explain,
+        rec: c.suggestions[0]?.rationale ?? "",
+        impact: IMPACT_TEXT[c.severity] ?? "Advisory",
+        ic: IMPACT_COLOR[c.severity] ?? "#7D8799",
+        suggestions: c.suggestions.filter((s) => !s.isApplied).map((s) => {
+          const payload = (s.payload ?? {}) as Record<string, unknown>;
+          return {
+            id: s.id,
+            type: s.type,
+            label: s.label,
+            rationale: s.rationale ?? "",
+            rank: s.rank ?? 99,
+            residualRisk: String(payload.residualRisk ?? "medium"),
+            costDelta: Number(payload.costDelta ?? payload.quoteDelta ?? 0),
+            disruption: String(payload.disruption ?? "medium"),
+            beforeRisk: String(payload.beforeRisk ?? ""),
+            afterRisk: String(payload.afterRisk ?? ""),
+            tradeoffNarration: String(payload.tradeoffNarration ?? ""),
+            gateDelta: payload.gateDelta as Record<string, string> | undefined,
+            quoteDelta: Number(payload.quoteDelta ?? payload.costDelta ?? 0),
+            toolTraceCount: Array.isArray(payload.toolTrace) ? payload.toolTrace.length : 0,
+            facts: Array.isArray(payload.toolTrace)
+              ? payload.toolTrace.slice(0, 4).map((entry) => {
+                  const tool = entry as { name?: string; result?: Record<string, unknown> };
+                  if (tool.name === "findSubstitutes") return "Substitutes verified";
+                  if (tool.name === "reserveDryRun") return String(tool.result?.message ?? "Dry-run checked");
+                  if (tool.name === "priceAssets") return "Asset price estimated";
+                  if (tool.name === "getPricingRules") return "Pricing rule fetched";
+                  return `${tool.name ?? "Tool"} called`;
+                })
+              : [],
+          };
+        }).sort((a, b) => a.rank - b.rank),
+      };
+    }),
+  );
+
+  const rooms = roomPositions ?? FALLBACK_ROOM_POSITIONS;
+  const planSpaces = (event?.planVersions[0]?.snapshot as { selectedSpaces?: Array<{ name: string }> } | undefined)?.selectedSpaces;
+  const allocatedSpaceNames =
+    planSpaces?.map((space) => space.name) ??
+    event?.spaceReservations.map((reservation) => (reservation as { space?: { name: string } }).space?.name).filter(Boolean) as string[] ??
+    [];
+  const twinOverlays = buildTwinOverlays({
+    rooms,
+    conflicts: conflicts.map((conflict) => ({
+      id: conflict.id,
+      type: conflict.type,
+      severity: conflict.severity,
+      status: conflict.status,
+      title: conflict.title,
+      detail: (conflict.detail ?? {}) as Record<string, unknown>,
+    })),
+    allocatedSpaceNames,
+  });
 
   return (
-    <ScreenContainer>
-      <div style={{ display: "grid", gridTemplateColumns: protectCols, gap: 18, alignItems: "start" }}>
-        {/* Inventory Planner */}
-        <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, background: "#151821", padding: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <div style={{ font: "700 15px Inter, sans-serif", color: "#fff" }}>Inventory Planner</div>
-            <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>FOR 18 JUL</span>
-          </div>
-          <p style={{ font: "500 12px/1.5 Inter, sans-serif", color: "#7D8799", margin: "0 0 18px" }}>
-            Required vs reserved vs available — shortages surface in red.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-            {PLANNER.map((p) => {
-              const availPct = Math.min(100, (p.avail / p.req) * 100);
-              const resPct = Math.min(100, (p.res / p.req) * 100);
-              const figures = `${p.res}/${p.req} · ${p.avail} free`;
-              return (
-                <div key={p.cat}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ font: "600 12px Inter, sans-serif", color: "#fff" }}>{p.cat}</span>
-                    <span
-                      style={{
-                        font: "700 9px 'JetBrains Mono', monospace",
-                        color: p.short ? "#EF4444" : "#22C55E",
-                        background: p.short ? "rgba(239,68,68,.12)" : "rgba(34,197,94,.12)",
-                        padding: "3px 7px",
-                        borderRadius: 6,
-                      }}
-                    >
-                      {p.short ? "SHORT" : "OK"}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, height: 7, borderRadius: 4, background: "#0F1218", overflow: "hidden", position: "relative" }}>
-                      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${availPct}%`, background: "#2A6FDB", opacity: 0.4 }} />
-                      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${resPct}%`, background: p.short ? "#EF4444" : A, borderRadius: 4 }} />
-                    </div>
-                    <span style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", width: 96, textAlign: "right", flex: "none" }}>{figures}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ display: "flex", gap: 16, marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.06)" }}>
-            <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#2A6FDB" }}>▮ AVAILABLE</span>
-            <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000" }}>▮ RESERVED</span>
-            <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#EF4444" }}>▮ SHORTAGE</span>
-          </div>
-        </div>
-
-        {/* Conflict Center */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ font: "700 15px Inter, sans-serif", color: "#fff" }}>Conflict Center</div>
-              <div style={{ font: "500 12px Inter, sans-serif", color: "#7D8799", marginTop: 3 }}>Problems caught before they reach the floor.</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ font: "800 22px/1 Inter, sans-serif", color: conflictCountColor }}>{openConflicts}</div>
-              <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>OPEN</div>
-            </div>
-          </div>
-          {CONFLICTS.map((c) => {
-            const done = resolved.includes(c.id);
-            return (
-              <div
-                key={c.id}
-                style={{
-                  border: `1px solid ${done ? "rgba(34,197,94,.3)" : "rgba(255,255,255,.08)"}`,
-                  borderRadius: 16,
-                  background: done ? "rgba(34,197,94,.04)" : "#151821",
-                  padding: 20,
-                  ...(done ? { opacity: 0.85 } : {}),
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <span
-                    style={{
-                      font: "700 9px 'JetBrains Mono', monospace",
-                      letterSpacing: ".06em",
-                      color: done ? "#0D0D12" : c.sc === A ? "#0D0D12" : "#fff",
-                      background: done ? "#22C55E" : c.sc,
-                      padding: "5px 8px",
-                      borderRadius: 7,
-                      flex: "none",
-                    }}
-                  >
-                    {done ? "RESOLVED" : c.sev}
-                  </span>
-                  <span style={{ font: "700 14px Inter, sans-serif", color: "#fff", flex: 1 }}>{c.title}</span>
-                  <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: done ? "#22C55E" : "#7D8799", flex: "none" }}>
-                    {done ? "✓ APPLIED" : "OPEN"}
-                  </span>
-                </div>
-                <p style={{ font: "400 13px/1.6 Inter, sans-serif", color: "#AEB5C2", margin: "0 0 12px" }}>{c.explain}</p>
-                <div style={{ padding: 13, borderRadius: 12, background: "rgba(200,240,0,.05)", border: "1px solid rgba(200,240,0,.2)", borderLeft: "3px solid #C8F000", marginBottom: 13 }}>
-                  <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".1em", marginBottom: 6 }}>AI RECOMMENDATION</div>
-                  <p style={{ font: "500 13px/1.5 Inter, sans-serif", color: "#E6E9EF", margin: 0 }}>{c.rec}</p>
-                  <div style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", marginTop: 8 }}>
-                    Impact if applied: <span style={{ font: "700 12px Inter, sans-serif", color: c.ic }}>{c.impact}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={done ? undefined : () => setResolved((r) => r.concat(c.id))}
-                  disabled={done}
-                  style={{
-                    width: "100%",
-                    padding: 12,
-                    borderRadius: 11,
-                    border: "none",
-                    cursor: done ? "default" : "pointer",
-                    font: "700 13px Inter, sans-serif",
-                    background: done ? "rgba(34,197,94,.14)" : A,
-                    color: done ? "#22C55E" : "#0D0D12",
-                    ...(done ? {} : { boxShadow: "0 6px 20px rgba(200,240,0,.2)" }),
-                  }}
-                >
-                  {done ? "Resolution applied" : "Apply AI resolution"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </ScreenContainer>
+    <ProtectClient
+      inventory={inventoryRows}
+      conflicts={conflictRows}
+      readinessGates={readiness?.gates ?? []}
+      twinRooms={rooms}
+      twinSelectedSlugs={twinOverlays.selectedSlugs}
+      twinPins={twinOverlays.pins}
+      twinFlows={twinOverlays.flows}
+    />
   );
+}
+
+async function buildInventoryRows(
+  event: Awaited<ReturnType<typeof getEvent>>,
+  shortages: Awaited<ReturnType<typeof detectAssetShortages>>,
+) {
+  if (!event) return [];
+
+  const REQ_LABELS: Record<string, string> = {
+    wirelessMicrophones: "Wireless Microphones",
+    wiredMicrophones: "Wired Microphones",
+    projectors: "Projectors",
+    screens: "Screens",
+    speakers: "Speakers",
+    chairs: "Chairs",
+    tables: "Tables",
+  };
+
+  const rows = [];
+  const activeReservationItems = event.assetReservations
+    .filter((r) => !["RELEASED", "CANCELLED"].includes(r.status))
+    .flatMap((r) => r.items.filter((i) => !["RELEASED", "CANCELLED", "SUBSTITUTED"].includes(i.itemStatus)));
+
+  for (const [key, label] of Object.entries(REQ_LABELS)) {
+    const req = event.requirements.find((r) => r.key === key);
+    if (!req) continue;
+    const required = typeof req.valueJson === "number" ? req.valueJson : 0;
+    if (required <= 0) continue;
+
+    const reserved = activeReservationItems
+      .filter((i) => i.quantity > 0 && i.category?.name === label)
+      .reduce((sum, item) => sum + item.quantity, 0);
+    const shortage = shortages.find((s) => s.category.toLowerCase().includes(label.split(" ")[0].toLowerCase()));
+    const avail = shortage ? shortage.available : required;
+    const short = shortage ? shortage.shortBy > 0 : false;
+
+    rows.push({ cat: label, req: required, res: Math.min(reserved, required), avail, short });
+  }
+
+  return rows;
 }

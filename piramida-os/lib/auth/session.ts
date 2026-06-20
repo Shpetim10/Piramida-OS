@@ -16,7 +16,16 @@ import { createSupabaseServerClient } from "./supabase-server";
  * It must NEVER trust an unverified header outside DEMO_MODE.
  */
 
+let authUserIdOverride: string | null = null;
+
+/** Script/test seam — never set from production request handlers. */
+export function setAuthUserIdOverride(userId: string | null): void {
+  authUserIdOverride = userId;
+}
+
 export async function getAuthUserId(): Promise<string | null> {
+  if (authUserIdOverride) return authUserIdOverride;
+
   // Slot for the real Supabase adapter (set once @supabase/ssr is added).
   const fromSupabase = await resolveSupabaseUserId();
   if (fromSupabase) return fromSupabase;

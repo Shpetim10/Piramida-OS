@@ -2,7 +2,6 @@ import {
   EventRequestStatus,
   EventStatus,
   EventApprovalStatus,
-  EventType,
   EventVisibility,
   ProfileType,
   Prisma,
@@ -14,7 +13,6 @@ import { getOrgId } from "../db/org";
 import { createAuditLog } from "../audit/log";
 import {
   requirePermission,
-  requireStaff,
   requireOrganizerOwnsRequest,
   getCurrentProfile,
   AuthError,
@@ -23,6 +21,14 @@ import { hasPermission } from "../auth/permissions";
 import { createEventRequestInput } from "../validation/schemas";
 import { requiredText, trimmed, uuid } from "../validation/common";
 import { assertTransition, EVENT_REQUEST_TRANSITIONS } from "./state-machines";
+import {
+  eventIntakeSchema,
+  eventTypeToPrisma,
+  intakeToRequirementRows,
+  normalizeEventType,
+  normalizeIntake,
+  type EventIntake,
+} from "../ai/event-intake-contract";
 
 // Event request intake + AI extraction.
 //
@@ -36,36 +42,8 @@ import { assertTransition, EVENT_REQUEST_TRANSITIONS } from "./state-machines";
 // Extraction schema + deterministic parser
 // ---------------------------------------------------------------------------
 
-export const eventExtractionSchema = z.object({
-  eventType: z.enum(["conference", "workshop", "exhibition", "concert", "private", "corporate", "other"]),
-  expectedGuests: z.number().int().nonnegative(),
-  setupHours: z.number().nonnegative().optional(),
-  mainStage: z.boolean().optional(),
-  breakoutRooms: z.number().int().nonnegative().optional(),
-  coffeeArea: z.boolean().optional(),
-  registrationDesk: z.boolean().optional(),
-  publicGuestRegistration: z.boolean().optional(),
-  screens: z.number().int().nonnegative().optional(),
-  projectors: z.number().int().nonnegative().optional(),
-  wirelessMicrophones: z.number().int().nonnegative().optional(),
-  wiredMicrophones: z.number().int().nonnegative().optional(),
-  chairs: z.number().int().nonnegative().optional(),
-  tables: z.number().int().nonnegative().optional(),
-  speakers: z.number().int().nonnegative().optional(),
-  livestream: z.boolean().optional(),
-  missingFields: z.array(z.string()).default([]),
-});
-export type EventExtraction = z.infer<typeof eventExtractionSchema>;
-
-const EVENT_TYPE_MAP: Record<EventExtraction["eventType"], EventType> = {
-  conference: EventType.CONFERENCE,
-  workshop: EventType.WORKSHOP,
-  exhibition: EventType.EXHIBITION,
-  concert: EventType.CONCERT,
-  private: EventType.PRIVATE,
-  corporate: EventType.CORPORATE,
-  other: EventType.OTHER,
-};
+export const eventExtractionSchema = eventIntakeSchema;
+export type EventExtraction = EventIntake;
 
 /**
  * Deterministic intake parser. Stands in for OpenAI Structured Outputs so the
@@ -87,39 +65,59 @@ export function deterministicExtract(text: string): EventExtraction {
   const projectors = lower.includes("projector") ? Math.max(1, num(/(\d+)\s*projectors?/, 1)) : 0;
   const speakers = lower.includes("speaker") ? Math.max(2, num(/(\d+)\s*speakers?/, 2)) : 0;
 
-  let eventType: EventExtraction["eventType"] = "other";
-  if (lower.includes("conference")) eventType = "conference";
+  let eventType = "other";
+  if (lower.includes("conference") || lower.includes("summit") || lower.includes("forum")) eventType = "conference";
   else if (lower.includes("workshop")) eventType = "workshop";
   else if (lower.includes("exhibition")) eventType = "exhibition";
   else if (lower.includes("concert") || lower.includes("performance")) eventType = "concert";
+  else if (lower.includes("corporate")) eventType = "corporate";
+  else if (lower.includes("private")) eventType = "private";
 
   const breakoutRooms = lower.includes("two breakout") ? 2 : num(/(\d+)\s*breakout/);
+  const datePreference = lower.match(/\b(\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)(?:\s+20\d{2})?)\b/)?.[1];
+  const fullDay = /\bfull\s*day\b/.test(lower);
   const missingFields: string[] = [];
-  if (!/\b(20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december)\b/.test(lower)) {
-    missingFields.push("exact event date");
+  if (!datePreference && !/\b(20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december)\b/.test(lower)) {
+    missingFields.push("date preference");
   }
-  if (!/\bend(?:s|ing)?\b.*\b(\d{1,2})(?::\d{2})?\s*(?:am|pm)?\b/.test(lower)) {
+  if (!fullDay && !/\bend(?:s|ing)?\b.*\b(\d{1,2})(?::\d{2})?\s*(?:am|pm)?\b/.test(lower)) {
     missingFields.push("event end time");
   }
 
-  return eventExtractionSchema.parse({
-    eventType,
+  const confidence = guests > 0 && eventType !== "other" ? 0.86 : 0.68;
+
+  return normalizeIntake({
+    eventType: normalizeEventType(eventType),
     expectedGuests: guests,
+    datePreference,
     setupHours: 2,
-    mainStage: /keynote|stage/.test(lower),
-    breakoutRooms,
-    coffeeArea: lower.includes("coffee"),
-    registrationDesk: lower.includes("registration") || lower.includes("register"),
-    publicGuestRegistration: lower.includes("register online") || lower.includes("register") || lower.includes("qr"),
-    screens,
-    projectors,
-    wirelessMicrophones: wireless,
-    wiredMicrophones: wired,
-    chairs: lower.includes("chair") ? Math.max(guests > 0 ? Math.ceil(guests * 0.85) : 0, 0) : 0,
-    tables: lower.includes("table") ? 15 : 0,
-    speakers,
-    livestream: lower.includes("livestream") || lower.includes("live stream"),
+    teardownHours: 1,
+    needs: {
+      mainStage: /keynote|stage/.test(lower),
+      breakoutRooms,
+      coffeeArea: lower.includes("coffee") || lower.includes("lunch") || lower.includes("networking"),
+      registrationDesk: lower.includes("registration") || lower.includes("register") || lower.includes("qr"),
+      publicGuestRegistration: lower.includes("register online") || lower.includes("register") || lower.includes("qr"),
+      screens,
+      projectors,
+      wirelessMicrophones: wireless,
+      wiredMicrophones: wired,
+      chairs: lower.includes("chair") ? Math.max(guests > 0 ? Math.ceil(guests * 0.85) : 0, 0) : 0,
+      tables: lower.includes("table") ? 15 : 0,
+      speakers,
+      livestream: lower.includes("livestream") || lower.includes("live stream"),
+    },
     missingFields,
+    confidence,
+    fieldConfidence: {
+      eventType: eventType !== "other" ? 0.9 : 0.48,
+      expectedGuests: guests > 0 ? 0.94 : 0.35,
+      datePreference: datePreference ? 0.76 : 0.2,
+      needs: 0.82,
+    },
+    clarifyingQuestions: [],
+    suggestedNeeds: [],
+    thinkingLevel: confidence < 0.72 ? "high" : "lite",
   });
 }
 
@@ -220,7 +218,7 @@ export async function listEventRequests() {
   if (profile.type === ProfileType.ORGANIZER && profile.contactId) {
     return prisma.eventRequest.findMany({
       where: { orgId, deletedAt: null, contactId: profile.contactId },
-      include: { event: { select: { id: true, status: true } } },
+      include: { client: true, contact: true, event: { select: { id: true, status: true } } },
       orderBy: { createdAt: "desc" },
     });
   }
@@ -321,7 +319,7 @@ export async function parseEventRequestWithAI(requestId: string) {
 
 const updateReviewedInput = z.object({
   requestId: uuid,
-  reviewedJson: eventExtractionSchema, // staff-corrected, re-validated
+  reviewedJson: eventIntakeSchema, // staff-corrected, re-validated
 });
 
 export async function updateReviewedEventRequest(input: unknown) {
@@ -426,7 +424,7 @@ async function nextEventCode(orgId: string): Promise<string> {
 }
 
 /** Staff promote a reviewed request into a planning Event with requirements. */
-export async function createEventFromRequest(requestId: string) {
+export async function createEventFromRequest(requestId: string, reviewedFields?: unknown) {
   const actor = await requirePermission("events.plan");
   uuid.parse(requestId);
   const orgId = await getOrgId();
@@ -438,10 +436,9 @@ export async function createEventFromRequest(requestId: string) {
   if (!request) throw new AuthError("Request not found", 404);
   if (request.event) throw new AuthError("An event already exists for this request", 403);
 
-  const extraction = request.extractedJson
-    ? eventExtractionSchema.safeParse(request.extractedJson)
-    : null;
-  const ex = extraction?.success ? extraction.data : deterministicExtract(request.rawText);
+  const reviewed = reviewedFields ? normalizeIntake(reviewedFields) : null;
+  const extraction = request.extractedJson ? eventIntakeSchema.safeParse(request.extractedJson) : null;
+  const ex = reviewed ?? (extraction?.success ? normalizeIntake(extraction.data) : deterministicExtract(request.rawText));
 
   const code = await nextEventCode(orgId);
 
@@ -453,35 +450,30 @@ export async function createEventFromRequest(requestId: string) {
         clientId: request.clientId,
         code,
         title: request.title ?? `${ex.eventType} event`,
-        type: EVENT_TYPE_MAP[ex.eventType],
-        status: EventStatus.PLANNING,
+        type: eventTypeToPrisma(ex.eventType),
+        status: EventStatus.DRAFT,
         approvalStatus: EventApprovalStatus.PENDING_APPROVAL,
-        visibility: ex.publicGuestRegistration ? EventVisibility.PUBLIC : EventVisibility.PRIVATE,
+        visibility: ex.needs.publicGuestRegistration ? EventVisibility.PUBLIC : EventVisibility.PRIVATE,
         expectedGuests: ex.expectedGuests,
         returnBufferMinutes: 30,
       },
     });
 
-    // Derive requirement rows from the validated extraction.
-    const reqs: Array<{ key: string; valueJson: Prisma.InputJsonValue }> = [
-      { key: "wirelessMicrophones", valueJson: ex.wirelessMicrophones ?? 0 },
-      { key: "wiredMicrophones", valueJson: ex.wiredMicrophones ?? 0 },
-      { key: "screens", valueJson: ex.screens ?? 0 },
-      { key: "projectors", valueJson: ex.projectors ?? 0 },
-      { key: "speakers", valueJson: ex.speakers ?? 0 },
-      { key: "chairs", valueJson: ex.chairs ?? 0 },
-      { key: "tables", valueJson: ex.tables ?? 0 },
-      { key: "breakoutRooms", valueJson: ex.breakoutRooms ?? 0 },
-      { key: "registrationDesk", valueJson: ex.registrationDesk ?? false },
-      { key: "publicGuestRegistration", valueJson: ex.publicGuestRegistration ?? false },
-    ];
+    const reqs = intakeToRequirementRows(ex);
     await tx.eventRequirement.createMany({
-      data: reqs.map((r) => ({ orgId, eventId: created.id, key: r.key, valueJson: r.valueJson, source: "ai" })),
+      data: reqs.map((r) => ({ orgId, eventId: created.id, key: r.key, valueJson: r.valueJson, source: r.source })),
     });
 
     await tx.eventRequest.update({
       where: { id: requestId },
-      data: { status: EventRequestStatus.PLANNING },
+      data: {
+        status: EventRequestStatus.PLANNING,
+        extractedJson: ex as unknown as Prisma.InputJsonValue,
+        missingFields: ex.missingFields,
+        confidence: ex.confidence,
+        reviewedById: actor.id,
+        reviewedAt: new Date(),
+      },
     });
 
     await createAuditLog({

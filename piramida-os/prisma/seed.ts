@@ -10,6 +10,7 @@
 import { createHash } from "node:crypto";
 import {
   PrismaClient,
+  Prisma,
   ProfileType,
   ProfileStatus,
   RoleCode,
@@ -187,6 +188,8 @@ async function main() {
   });
 
   // -- Spaces -----------------------------------------------------------------
+  // features JSONB is shared by the space matcher, the 3D explore panel, and
+  // the pricer — single source of truth for room capabilities.
   const spaces: Array<{
     key: string;
     name: string;
@@ -195,23 +198,28 @@ async function main() {
     standing?: number;
     flow?: number;
     publicVisible?: boolean;
+    areaSqm?: number;
+    features?: Record<string, unknown>;
   }> = [
-    { key: "green", name: "Green Room", kind: "ROOM", capacity: 200, publicVisible: true },
-    { key: "orange", name: "Orange Room", kind: "ROOM", capacity: 120, publicVisible: true },
-    { key: "blue", name: "Blue Room", kind: "ROOM", capacity: 80, publicVisible: true },
-    { key: "yellow", name: "Yellow Room", kind: "ROOM", capacity: 80, publicVisible: true },
-    { key: "entrance", name: "Entrance", kind: "ENTRANCE", standing: 120, flow: 120, publicVisible: true },
-    { key: "main-corridor", name: "Main Corridor", kind: "CORRIDOR", flow: 80, publicVisible: true },
-    { key: "lower-corridor", name: "Lower Corridor", kind: "CORRIDOR", publicVisible: false },
-    { key: "storage-a", name: "Storage A", kind: "STORAGE" },
-    { key: "storage-b", name: "Storage B", kind: "STORAGE" },
-    { key: "tech-storage", name: "Tech Storage", kind: "STORAGE" },
-    { key: "tech-booth", name: "Tech Booth", kind: "TECH_ZONE" },
+    { key: "green", name: "Green Room", kind: "ROOM", capacity: 200, publicVisible: true, areaSqm: 400, features: { stage: true, builtInScreen: false, naturalLight: true, builtInAv: false } },
+    { key: "orange", name: "Orange Room", kind: "ROOM", capacity: 120, publicVisible: true, areaSqm: 240, features: { stage: false, builtInScreen: true, naturalLight: true, builtInAv: true } },
+    { key: "blue", name: "Blue Room", kind: "ROOM", capacity: 80, publicVisible: true, areaSqm: 160, features: { stage: false, builtInScreen: false, naturalLight: true, builtInAv: false } },
+    { key: "yellow", name: "Yellow Room", kind: "ROOM", capacity: 80, publicVisible: true, areaSqm: 160, features: { stage: false, builtInScreen: false, naturalLight: false, builtInAv: false } },
+    { key: "entrance", name: "Entrance", kind: "ENTRANCE", standing: 120, flow: 120, publicVisible: true, areaSqm: 100, features: { stage: false, builtInScreen: false, naturalLight: true, builtInAv: false } },
+    { key: "main-corridor", name: "Main Corridor", kind: "CORRIDOR", flow: 80, publicVisible: true, areaSqm: 80, features: {} },
+    { key: "lower-corridor", name: "Lower Corridor", kind: "CORRIDOR", publicVisible: false, areaSqm: 60, features: {} },
+    { key: "storage-a", name: "Storage A", kind: "STORAGE", areaSqm: 50, features: {} },
+    { key: "storage-b", name: "Storage B", kind: "STORAGE", areaSqm: 50, features: {} },
+    { key: "tech-storage", name: "Tech Storage", kind: "STORAGE", areaSqm: 30, features: {} },
+    { key: "tech-booth", name: "Tech Booth", kind: "TECH_ZONE", areaSqm: 20, features: { builtInAv: true } },
   ];
   for (const [i, s] of spaces.entries()) {
     await prisma.space.upsert({
       where: { orgId_name: { orgId: ORG_ID, name: s.name } },
-      update: {},
+      update: {
+        areaSqm: s.areaSqm,
+        features: (s.features ?? {}) as Prisma.InputJsonValue,
+      },
       create: {
         id: sid(`space:${s.key}`),
         orgId: ORG_ID,
@@ -223,6 +231,8 @@ async function main() {
         publicVisible: s.publicVisible ?? false,
         staffOnly: !(s.publicVisible ?? false),
         sortOrder: i,
+        areaSqm: s.areaSqm,
+        features: (s.features ?? {}) as Prisma.InputJsonValue,
       },
     });
   }
@@ -756,12 +766,209 @@ async function main() {
     { key: "soft_delete.retention_days", value: "30", type: SettingValueType.NUMBER },
     { key: "storage.upload_dir", value: "./uploads", type: SettingValueType.STRING },
     { key: "demo_mode", value: "true", type: SettingValueType.BOOLEAN },
+    // Planning engine config — scoring weights (must sum to 100)
+    {
+      key: "planning.scoring_weights",
+      value: JSON.stringify({ capacityFit: 30, availability: 25, layoutFit: 15, adjacency: 10, setupFeasibility: 10, guestFlow: 10 }),
+      type: SettingValueType.JSON,
+    },
+    // Feasibility score weights (must sum to 100)
+    {
+      key: "planning.feasibility_weights",
+      value: JSON.stringify({ spaceFit: 30, assetReadiness: 25, scheduleSafety: 15, powerCable: 10, staffTask: 10, guestReadiness: 10 }),
+      type: SettingValueType.JSON,
+    },
+    // Event DNA dimensions — each maps a requirements formula to a display label
+    {
+      key: "planning.dna_dimensions",
+      value: JSON.stringify([
+        { key: "peopleIntensity", label: "People Intensity", shortLabel: "PEOPLE", formula: "guestDensity" },
+        { key: "technicalComplexity", label: "Technical Complexity", shortLabel: "TECH", formula: "techCount" },
+        { key: "spaceComplexity", label: "Space Complexity", shortLabel: "SPACE", formula: "spaceCount" },
+        { key: "assetIntensity", label: "Asset Intensity", shortLabel: "ASSETS", formula: "assetCount" },
+        { key: "guestJourney", label: "Guest Journey", shortLabel: "JOURNEY", formula: "registration" },
+        { key: "setupRisk", label: "Setup Risk", shortLabel: "SETUP", formula: "setupHours" },
+        { key: "brandValue", label: "Brand Value", shortLabel: "BRAND", formula: "breakout" },
+        { key: "operationalRisk", label: "Operational Risk", shortLabel: "OPS RISK", formula: "livestream" },
+      ]),
+      type: SettingValueType.JSON,
+    },
+    // PyramidTwin room geometry — SVG positions keyed by space name (lowercase slug)
+    {
+      key: "twin.room_positions",
+      value: JSON.stringify([
+        { slug: "main-corridor", name: "Main Corridor", x: 236, y: 150, w: 128, h: 48, color: "#7A4BD6" },
+        { slug: "green-room", name: "Green Room", x: 182, y: 218, w: 112, h: 58, color: "#22C55E" },
+        { slug: "yellow-room", name: "Yellow Room", x: 306, y: 218, w: 112, h: 58, color: "#C9A227" },
+        { slug: "blue-room", name: "Blue Room", x: 128, y: 300, w: 158, h: 54, color: "#2A6FDB" },
+        { slug: "orange-room", name: "Orange Room", x: 314, y: 300, w: 158, h: 54, color: "#C0612A" },
+        { slug: "entrance", name: "Entrance", x: 262, y: 360, w: 76, h: 24, color: "#AEB5C2" },
+      ]),
+      type: SettingValueType.JSON,
+    },
+    // Launch gate display notes (key must match gate key in getLaunchReadiness)
+    {
+      key: "launch.gate_notes",
+      value: JSON.stringify({
+        space: "Spaces soft-held and confirmed for the full event window.",
+        assets: "AV, stage and logistics assets reserved and committed.",
+        power: "Circuit load balanced; cable safety kit reserved.",
+        staff: "Run-of-show tasks generated and assigned.",
+        proposal: "Quote finalized and organizer has approved.",
+        client: "Client linked and contact confirmed.",
+        guest_page: "Public event page published and accessible.",
+        registration: "QR registration open; guest list building.",
+        map: "Guest wayfinding map configured for public spaces.",
+        safety: "No outstanding power, cable, or flow safety risks.",
+        conflicts: "All critical conflicts resolved before launch.",
+      }),
+      type: SettingValueType.JSON,
+    },
   ];
-  for (const s of settings) {
+  // Additional config AppSettings for conflict catalog, suggestion types, and launch gates
+  const extraSettings: Array<{ key: string; value: string; type: SettingValueType }> = [
+    {
+      key: "planning.conflict_rules",
+      value: JSON.stringify([
+        { type: "SPACE_OVERLAP",             severity: "CRITICAL", label: "Space double-booked",        triggerParams: {} },
+        { type: "ASSET_SHORTAGE",            severity: "HIGH",     label: "Asset shortage",             triggerParams: { checkReplacement: true } },
+        { type: "SERIALIZED_DOUBLE_BOOKING", severity: "CRITICAL", label: "Serialized asset conflict",  triggerParams: {} },
+        { type: "SETUP_TEARDOWN_BUFFER",     severity: "MEDIUM",   label: "Buffer conflict",            triggerParams: { minBufferMinutes: 30 } },
+        { type: "POWER_CABLE_RISK",          severity: "MEDIUM",   label: "Power / cable risk",         triggerParams: { riskThreshold: 3 } },
+        { type: "GUEST_FLOW_RISK",           severity: "LOW",      label: "Guest flow bottleneck",      triggerParams: { flowRatio: 0.9 } },
+      ]),
+      type: SettingValueType.JSON,
+    },
+    {
+      key: "planning.suggestion_types",
+      value: JSON.stringify([
+        { type: "SUBSTITUTE_ASSET",  label: "Swap to replacement category",   payloadShape: { replacementCategoryId: "uuid", quantity: "number" } },
+        { type: "ADD_CABLE_KIT",     label: "Add Cable Kit A",                payloadShape: { kitId: "uuid" } },
+        { type: "ALTERNATIVE_SPACE", label: "Switch to alternative space",    payloadShape: { alternativeSpaceId: "uuid" } },
+        { type: "OVERFLOW_SPACE",    label: "Add overflow space",             payloadShape: { overflowSpaceId: "uuid" } },
+        { type: "INCREASE_BUFFER",   label: "Increase setup / teardown time", payloadShape: { extraMinutes: "number" } },
+        { type: "ADD_CREW",          label: "Add setup crew member",          payloadShape: { taskTemplateId: "uuid" } },
+        { type: "REDUCE_QUANTITY",   label: "Reduce requested quantity",      payloadShape: { newQuantity: "number" } },
+      ]),
+      type: SettingValueType.JSON,
+    },
+    {
+      key: "planning.launch_gates_config",
+      value: JSON.stringify([
+        { key: "space",        label: "Space",              isCritical: true,  source: "spaceReservations" },
+        { key: "assets",       label: "Assets",             isCritical: true,  source: "assetReservations" },
+        { key: "power",        label: "Power / Cables",     isCritical: false, source: "conflicts.POWER_CABLE_RISK" },
+        { key: "staff",        label: "Staff Tasks",        isCritical: false, source: "tasks" },
+        { key: "proposal",     label: "Proposal",           isCritical: true,  source: "proposals" },
+        { key: "client",       label: "Client",             isCritical: true,  source: "event.clientId" },
+        { key: "guest_page",   label: "Guest Page",         isCritical: false, source: "eventPublications" },
+        { key: "registration", label: "Registration",       isCritical: false, source: "guestRegistrations" },
+        { key: "map",          label: "Guest Map",          isCritical: false, source: "eventPublications.guestMapConfig" },
+        { key: "safety",       label: "Safety",             isCritical: true,  source: "conflicts.GUEST_FLOW_RISK" },
+        { key: "conflicts",    label: "Open Conflicts",     isCritical: true,  source: "conflicts.open" },
+      ]),
+      type: SettingValueType.JSON,
+    },
+    {
+      key: "planning.billing_policy",
+      value: JSON.stringify({
+        setupBilling: "discounted",
+        setupDiscountPct: 50,
+        minBillableHours: 4,
+        hourRounding: "ceil",
+      }),
+      type: SettingValueType.JSON,
+    },
+  ];
+  for (const s of [...settings, ...extraSettings]) {
     await prisma.appSetting.upsert({
       where: { orgId_key: { orgId: ORG_ID, key: s.key } },
       update: { value: s.value, valueType: s.type },
       create: { id: sid(`setting:${s.key}`), orgId: ORG_ID, key: s.key, value: s.value, valueType: s.type },
+    });
+  }
+
+  // -- Pricing rules (config-as-data; all priced in ALL) ----------------------
+  // Spaces: base per_hour + optional feature surcharges.
+  // Assets: per_unit_per_event for serialized/bulk; flat for kits.
+  // Modifiers: conference type multiplier + VAT (applied in priority order).
+  const pricingRules: Array<{
+    key: string;
+    scope: string;
+    targetKey?: string;
+    label: string;
+    matchJson?: Record<string, unknown>;
+    rateType: string;
+    amount: number;
+    minBillableHours?: number;
+    priority?: number;
+    notes?: string;
+  }> = [
+    // --- Space base rates (per_hour, min 4 h billable) ---
+    { key: "pr:space:green:base",    scope: "space", targetKey: "space:green",   label: "Green Room — base rate",   rateType: "per_hour", amount: 15000, minBillableHours: 4 },
+    { key: "pr:space:orange:base",   scope: "space", targetKey: "space:orange",  label: "Orange Room — base rate",  rateType: "per_hour", amount: 10000, minBillableHours: 4 },
+    { key: "pr:space:blue:base",     scope: "space", targetKey: "space:blue",    label: "Blue Room — base rate",    rateType: "per_hour", amount:  6000, minBillableHours: 4 },
+    { key: "pr:space:yellow:base",   scope: "space", targetKey: "space:yellow",  label: "Yellow Room — base rate",  rateType: "per_hour", amount:  6000, minBillableHours: 4 },
+    { key: "pr:space:entrance:base", scope: "space", targetKey: "space:entrance",label: "Entrance — base rate",     rateType: "per_hour", amount:  5000, minBillableHours: 4 },
+    // Corridors / storage / tech zones are not independently billed
+    { key: "pr:space:mcorridor:base",scope: "space", targetKey: "space:main-corridor",  label: "Main Corridor — included", rateType: "per_hour", amount: 0 },
+    { key: "pr:space:lcorridor:base",scope: "space", targetKey: "space:lower-corridor", label: "Lower Corridor — included",rateType: "per_hour", amount: 0 },
+
+    // --- Space feature surcharges (applied when matchJson.feature matches space.features) ---
+    // These are looked up by the pricer when the space has that feature flag set.
+    { key: "pr:feat:stage",     scope: "space", label: "Stage surcharge",          matchJson: { feature: "stage" },       rateType: "per_hour", amount: 3000, priority: 10 },
+    { key: "pr:feat:screen",    scope: "space", label: "Built-in screen surcharge", matchJson: { feature: "builtInScreen" },rateType: "per_hour", amount: 2000, priority: 10 },
+    { key: "pr:feat:buildinav", scope: "space", label: "Built-in AV surcharge",     matchJson: { feature: "builtInAv" },   rateType: "per_hour", amount: 2000, priority: 10 },
+
+    // --- Asset category rates ---
+    { key: "pr:cat:wmic",      scope: "asset_category", targetKey: "cat:wireless-mic", label: "Wireless Mic — per unit",     rateType: "per_unit_per_event", amount: 2000 },
+    { key: "pr:cat:wdmic",     scope: "asset_category", targetKey: "cat:wired-mic",    label: "Wired Mic — per unit",        rateType: "per_unit_per_event", amount: 1000 },
+    { key: "pr:cat:projector", scope: "asset_category", targetKey: "cat:projector",    label: "Projector — per unit",        rateType: "per_unit_per_event", amount: 3000 },
+    { key: "pr:cat:screen",    scope: "asset_category", targetKey: "cat:screen",       label: "Screen — per unit",           rateType: "per_unit_per_event", amount: 2000 },
+    { key: "pr:cat:speaker",   scope: "asset_category", targetKey: "cat:speaker",      label: "Speaker — per unit",          rateType: "per_unit_per_event", amount: 2000 },
+    { key: "pr:cat:regdesk",   scope: "asset_category", targetKey: "cat:reg-desk",     label: "Registration Desk — flat",    rateType: "per_event",          amount: 5000 },
+    { key: "pr:cat:chairs",    scope: "asset_category", targetKey: "cat:chairs",       label: "Chairs — per unit",           rateType: "per_unit_per_event", amount:  300 },
+    { key: "pr:cat:tables",    scope: "asset_category", targetKey: "cat:tables",       label: "Tables — per unit",           rateType: "per_unit_per_event", amount:  800 },
+    { key: "pr:cat:extcable",  scope: "asset_category", targetKey: "cat:ext-cables",   label: "Extension Cables — per unit", rateType: "per_unit_per_event", amount:  200 },
+    { key: "pr:cat:cablecover",scope: "asset_category", targetKey: "cat:cable-covers", label: "Cable Covers — per unit",     rateType: "per_unit_per_event", amount:  150 },
+
+    // --- Kit rates (flat per event, overrides sum-of-components) ---
+    { key: "pr:kit:cable-a",  scope: "kit", targetKey: "kit:cable-a",  label: "Cable Kit A — flat bundle",  rateType: "flat", amount: 8000 },
+    { key: "pr:kit:signage",  scope: "kit", targetKey: "kit:signage",  label: "Signage Kit — flat bundle",  rateType: "flat", amount: 5000 },
+
+    // --- Modifiers (applied last, in priority order, percent = multiply base) ---
+    { key: "pr:mod:conference", scope: "modifier", label: "Conference type uplift (+10%)", matchJson: { event_type: "CONFERENCE" }, rateType: "percent", amount: 10,   priority: 100 },
+    { key: "pr:mod:vat",        scope: "modifier", label: "VAT (20%)",                     matchJson: {},                          rateType: "percent", amount: 20,   priority: 200, notes: "Albanian VAT" },
+  ];
+
+  for (const r of pricingRules) {
+    // Resolve the targetId from the key naming convention (space:X => sid("space:X"))
+    const targetId = r.targetKey ? sid(r.targetKey) : null;
+    await prisma.pricingRule.upsert({
+      where: { id: sid(r.key) },
+      update: {
+        label: r.label,
+        matchJson: (r.matchJson ?? {}) as Prisma.InputJsonValue,
+        rateType: r.rateType,
+        amount: r.amount,
+        minBillableHours: r.minBillableHours ?? null,
+        priority: r.priority ?? 0,
+        notes: r.notes ?? null,
+      },
+      create: {
+        id: sid(r.key),
+        orgId: ORG_ID,
+        scope: r.scope,
+        targetId,
+        label: r.label,
+        matchJson: (r.matchJson ?? {}) as Prisma.InputJsonValue,
+        rateType: r.rateType,
+        amount: r.amount,
+        currency: "ALL",
+        minBillableHours: r.minBillableHours ?? null,
+        priority: r.priority ?? 0,
+        notes: r.notes ?? null,
+      },
     });
   }
 

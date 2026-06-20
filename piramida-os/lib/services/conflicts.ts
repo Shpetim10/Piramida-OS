@@ -17,6 +17,10 @@ import { createConflictInput } from "../validation/schemas";
 import { assertTransition, CONFLICT_TRANSITIONS } from "./state-machines";
 import { detectAssetShortages, checkAssetAvailability } from "./reservations";
 import { findSpaceReservationConflicts } from "./spaces";
+import { loadWorldSnapshot } from "../repo";
+import { detectPlanningConflicts, type ConflictRuleConfig } from "../planning/conflict-detector";
+import { generateConflictResolutionSuggestions } from "../ai/conflict-resolution-agent";
+import { generateEventPlan } from "./planning";
 
 // Deterministic conflict detection + bounded auto-fixes.
 //
@@ -38,6 +42,13 @@ function eventWindow(event: {
     from: event.setupStart,
     until: new Date(event.teardownEnd.getTime() + buffer * 60_000),
   };
+}
+
+function conflictRulesFromSettings(value: unknown): ConflictRuleConfig[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => item as Partial<ConflictRuleConfig>)
+    .filter((item): item is ConflictRuleConfig => Boolean(item.type && item.severity && item.label));
 }
 
 /** Idempotently upsert a deterministic conflict keyed by (event, type, title). */
@@ -67,10 +78,19 @@ export async function detectConflicts(eventId: string) {
   const actor = await requirePermission("events.plan");
   uuid.parse(eventId);
   const orgId = await getOrgId();
-  const event = await prisma.event.findFirst({
+  const [event, snapshot] = await Promise.all([
+    prisma.event.findFirst({
     where: { id: eventId, orgId, deletedAt: null },
-    include: { spaceReservations: { include: { space: true } } },
-  });
+      include: {
+        requirements: true,
+        conflicts: true,
+        spaceReservations: { include: { space: true } },
+        assetReservations: { include: { items: { include: { asset: true } } } },
+        planVersions: { orderBy: { version: "desc" }, take: 1 },
+      },
+    }),
+    loadWorldSnapshot(orgId),
+  ]);
   if (!event) throw new AuthError("Event not found", 404);
 
   const created: string[] = [];
@@ -98,6 +118,78 @@ export async function detectConflicts(eventId: string) {
         rationale: `${s.replacementCategory} units are free for the full reservation window and are an allowed replacement.`,
         payload: { replacementCategory: s.replacementCategory, quantity: s.shortBy },
       });
+    }
+  }
+
+  const latestSnapshot = event.planVersions[0]?.snapshot as {
+    selectedSpaces?: unknown;
+    assetPlan?: unknown;
+  } | undefined;
+  const requirements = Object.fromEntries(event.requirements.map((row) => [row.key, row.valueJson]));
+  const selectedSpaces = Array.isArray(latestSnapshot?.selectedSpaces) ? latestSnapshot.selectedSpaces : [];
+  const assetPlan = latestSnapshot?.assetPlan && typeof latestSnapshot.assetPlan === "object"
+    ? latestSnapshot.assetPlan
+    : { lines: [], shortages: [] };
+  const assetItems = event.assetReservations.flatMap((reservation) =>
+    reservation.items.map((item) => ({
+      assetId: item.assetId,
+      assetName: item.asset?.name,
+      windowStart: item.windowStart,
+      windowEnd: item.windowEnd,
+    })),
+  );
+  const cableKitReserved = event.assetReservations.some((reservation) =>
+    reservation.items.some(
+      (item) =>
+        item.sourceKitId &&
+        !["RELEASED", "CANCELLED", "SUBSTITUTED"].includes(item.itemStatus),
+    ),
+  );
+  if (event.setupStart && event.eventStart && event.eventEnd && event.teardownEnd) {
+    const planEvent = {
+      id: event.id,
+      title: event.title,
+      type: event.type,
+      expectedGuests: event.expectedGuests ?? Number(requirements.expectedGuests ?? 0) ?? 0,
+      window: {
+        setupStart: event.setupStart,
+        eventStart: event.eventStart,
+        eventEnd: event.eventEnd,
+        teardownEnd: event.teardownEnd,
+        availabilityUntil: new Date(event.teardownEnd.getTime() + (event.returnBufferMinutes ?? 30) * 60_000),
+      },
+    };
+    const pureConflicts = detectPlanningConflicts({
+      event: planEvent,
+      requirements,
+      selectedSpaces: selectedSpaces as never,
+      assetPlan: assetPlan as never,
+      snapshot,
+      activeSpaceWindows: [],
+      activeAssetWindows: await activeSerializedAssetWindows(orgId, planEvent.window.setupStart, planEvent.window.availabilityUntil),
+      existingAssetReservations: assetItems,
+      rules: conflictRulesFromSettings(snapshot.settings["planning.conflict_rules"]),
+      cableKitReserved,
+    });
+    for (const detected of pureConflicts.filter((item) => item.type !== "ASSET_SHORTAGE")) {
+      if (
+        detected.type === "SERIALIZED_DOUBLE_BOOKING" &&
+        event.conflicts.some((existing) =>
+          existing.type === "SERIALIZED_DOUBLE_BOOKING" &&
+          existing.status === "OPEN" &&
+          typeof detected.detail.asset === "string" &&
+          existing.title.includes(detected.detail.asset)
+        )
+      ) {
+        continue;
+      }
+      const conflict = await upsertConflict(orgId, eventId, {
+        type: detected.type,
+        severity: detected.severity,
+        title: detected.title,
+        detail: detected.detail as Prisma.InputJsonValue,
+      });
+      created.push(conflict.id);
     }
   }
 
@@ -137,7 +229,25 @@ export async function detectConflicts(eventId: string) {
       summary: `Detected ${created.length} conflict(s)`,
     });
   }
+  await refreshAgentSuggestionsForOpenConflicts(orgId, eventId);
   return listConflicts(eventId);
+}
+
+async function activeSerializedAssetWindows(orgId: string, from: Date, until: Date) {
+  const rows = await prisma.assetReservationItem.findMany({
+    where: {
+      orgId,
+      assetId: { not: null },
+      itemStatus: { notIn: [AssetReservationItemStatus.RELEASED, AssetReservationItemStatus.CANCELLED, AssetReservationItemStatus.SUBSTITUTED] },
+      windowStart: { lt: until },
+      windowEnd: { gt: from },
+      reservation: { deletedAt: null, status: { notIn: [AssetReservationStatus.RELEASED, AssetReservationStatus.CANCELLED] } },
+    },
+    select: { assetId: true, windowStart: true, windowEnd: true, reservation: { select: { eventId: true } } },
+  });
+  return rows
+    .filter((row) => row.assetId && row.windowStart && row.windowEnd)
+    .map((row) => ({ eventId: row.reservation.eventId, resourceId: row.assetId!, startsAt: row.windowStart!, endsAt: row.windowEnd! }));
 }
 
 async function ensureSuggestion(
@@ -148,6 +258,51 @@ async function ensureSuggestion(
   const existing = await prisma.conflictSuggestion.findFirst({ where: { orgId, conflictId, type: data.type } });
   if (existing) return existing;
   return prisma.conflictSuggestion.create({ data: { orgId, conflictId, rank: 1, ...data } });
+}
+
+async function refreshAgentSuggestionsForOpenConflicts(orgId: string, eventId: string) {
+  const conflicts = await prisma.conflict.findMany({
+    where: { orgId, eventId, status: ConflictStatus.OPEN },
+    include: { event: true, suggestions: true },
+  });
+  for (const conflict of conflicts) {
+    const allOpenSuggestionsHaveTrace = conflict.suggestions
+      .filter((suggestion) => !suggestion.isApplied)
+      .every((suggestion) => {
+      const payload = suggestion.payload as Record<string, unknown>;
+      return Array.isArray(payload?.toolTrace);
+    });
+    if (conflict.suggestions.length > 0 && allOpenSuggestionsHaveTrace) continue;
+    const generated = await generateConflictResolutionSuggestions({ orgId, conflict });
+    if (generated.suggestions.length > 0) {
+      await prisma.conflictSuggestion.deleteMany({ where: { orgId, conflictId: conflict.id, isApplied: false } });
+    }
+    for (const suggestion of generated.suggestions) {
+      if (!Object.values(ConflictSuggestionType).includes(suggestion.type)) continue;
+      const payload = {
+        ...suggestion.payload,
+        residualRisk: suggestion.residualRisk,
+        costDelta: suggestion.costDelta,
+        disruption: suggestion.disruption,
+        beforeRisk: suggestion.beforeRisk,
+        afterRisk: suggestion.afterRisk,
+        tradeoffNarration: suggestion.tradeoffNarration,
+        toolTrace: generated.toolTrace,
+        model: generated.model,
+      };
+      await prisma.conflictSuggestion.create({
+        data: {
+          orgId,
+          conflictId: conflict.id,
+          type: suggestion.type,
+          label: suggestion.label,
+          rationale: suggestion.rationale,
+          payload: payload as Prisma.InputJsonValue,
+          rank: suggestion.rank,
+        },
+      });
+    }
+  }
 }
 
 export async function listConflicts(eventId: string) {
@@ -276,8 +431,13 @@ export async function applyConflictSuggestion(conflictId: string, suggestionId: 
 
     if (suggestion.type === ConflictSuggestionType.SUBSTITUTE_ASSET) {
       const replacementCategory = String(payload.replacementCategory ?? "");
+      const replacementCategoryId = typeof payload.replacementCategoryId === "string" ? payload.replacementCategoryId : null;
+      const withAssetId = typeof payload.withAssetId === "string" ? payload.withAssetId : null;
+      const replaceAssetId = typeof payload.replaceAssetId === "string" ? payload.replaceAssetId : null;
       const quantity = Number(payload.quantity ?? 1);
-      const category = await tx.assetCategory.findFirst({ where: { orgId, name: replacementCategory, deletedAt: null } });
+      const category = replacementCategoryId
+        ? await tx.assetCategory.findFirst({ where: { orgId, id: replacementCategoryId, deletedAt: null } })
+        : await tx.assetCategory.findFirst({ where: { orgId, name: replacementCategory, deletedAt: null } });
       if (!category) throw new AuthError(`Replacement category ${replacementCategory} not found`, 403);
 
       // Revalidate availability for the replacement category.
@@ -289,6 +449,12 @@ export async function applyConflictSuggestion(conflictId: string, suggestionId: 
       });
       if (available.length < quantity) {
         throw new AuthError(`Not enough ${replacementCategory} available to substitute`, 403);
+      }
+      const chosenAssets = withAssetId
+        ? available.filter((asset) => asset.id === withAssetId).slice(0, quantity)
+        : available.slice(0, quantity);
+      if (chosenAssets.length < quantity) {
+        throw new AuthError(`Selected replacement asset is no longer available`, 403);
       }
 
       // Reuse the event's active reservation, or create a soft hold.
@@ -310,7 +476,7 @@ export async function applyConflictSuggestion(conflictId: string, suggestionId: 
           },
         });
       }
-      for (const a of available.slice(0, quantity)) {
+      for (const a of chosenAssets) {
         await tx.assetReservationItem.create({
           data: {
             orgId,
@@ -324,7 +490,38 @@ export async function applyConflictSuggestion(conflictId: string, suggestionId: 
           },
         });
       }
-      summary = `Substituted ${quantity}x ${replacementCategory}`;
+      if (replaceAssetId) {
+        await tx.assetReservationItem.updateMany({
+          where: {
+            orgId,
+            assetId: replaceAssetId,
+            reservation: { eventId: event.id },
+            itemStatus: { notIn: [AssetReservationItemStatus.RELEASED, AssetReservationItemStatus.CANCELLED, AssetReservationItemStatus.SUBSTITUTED] },
+          },
+          data: { itemStatus: AssetReservationItemStatus.SUBSTITUTED },
+        });
+      }
+      await applyRequirementSubstitutionTx(tx, orgId, event.id, replacementCategory || category.name, quantity);
+      const originalAssetName = typeof payload.replaceAssetName === "string" ? payload.replaceAssetName : null;
+      await tx.conflict.updateMany({
+        where: {
+          orgId,
+          eventId: event.id,
+          id: { not: conflictId },
+          status: ConflictStatus.OPEN,
+          OR: [
+            { type: ConflictType.ASSET_SHORTAGE, title: { contains: "Wireless Microphone" } },
+            ...(originalAssetName ? [{ type: ConflictType.SERIALIZED_DOUBLE_BOOKING, title: { contains: originalAssetName } }] : []),
+          ],
+        },
+        data: {
+          status: ConflictStatus.AUTO_FIXED,
+          resolvedAt: new Date(),
+          resolvedByProfileId: actor.id,
+          resolutionNote: `Resolved by ${suggestion.label}`,
+        },
+      });
+      summary = `Substituted ${quantity}x ${replacementCategory || category.name}`;
     } else if (suggestion.type === ConflictSuggestionType.ADD_CABLE_KIT) {
       // Reserve a cable safety kit's batch items for the event window.
       const kit = await tx.assetKit.findFirst({
@@ -391,8 +588,44 @@ export async function applyConflictSuggestion(conflictId: string, suggestionId: 
       summary,
     });
     return updatedConflict;
-  });
+  }, { timeout: 20_000 });
+  await generateEventPlan(conflict.eventId);
   return result;
+}
+
+async function applyRequirementSubstitutionTx(
+  tx: Prisma.TransactionClient,
+  orgId: string,
+  eventId: string,
+  replacementCategory: string,
+  quantity: number,
+) {
+  const replacementKey = categoryRequirementKey(replacementCategory);
+  const originalKey = replacementKey === "wiredMicrophones" ? "wirelessMicrophones" : null;
+  if (originalKey) await bumpRequirement(tx, orgId, eventId, originalKey, -quantity);
+  if (replacementKey) await bumpRequirement(tx, orgId, eventId, replacementKey, quantity);
+}
+
+function categoryRequirementKey(category: string) {
+  const normalized = category.toLowerCase();
+  if (normalized.includes("wired microphone")) return "wiredMicrophones";
+  if (normalized.includes("wireless microphone")) return "wirelessMicrophones";
+  if (normalized.includes("screen")) return "screens";
+  if (normalized.includes("speaker")) return "speakers";
+  if (normalized.includes("chair")) return "chairs";
+  if (normalized.includes("table")) return "tables";
+  return null;
+}
+
+async function bumpRequirement(tx: Prisma.TransactionClient, orgId: string, eventId: string, key: string, delta: number) {
+  const row = await tx.eventRequirement.findFirst({ where: { orgId, eventId, key } });
+  const current = typeof row?.valueJson === "number" ? row.valueJson : Number(row?.valueJson ?? 0) || 0;
+  const next = Math.max(0, current + delta);
+  if (row) {
+    await tx.eventRequirement.update({ where: { id: row.id }, data: { valueJson: next } });
+  } else if (next > 0) {
+    await tx.eventRequirement.create({ data: { orgId, eventId, key, valueJson: next, source: "staff_review" } });
+  }
 }
 
 async function ensureReservationTx(

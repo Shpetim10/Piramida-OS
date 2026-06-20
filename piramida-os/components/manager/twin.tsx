@@ -14,18 +14,20 @@ export function PyramidTwin({
   occ = {},
   focus,
   onRoom,
+  rooms: roomInput,
 }: {
   selected?: string[];
   layer?: Layer;
   occ?: Record<string, number>;
   focus?: string;
   onRoom?: (id: string) => void;
+  rooms?: Array<{ id: string; name: string; cap?: string; x: number; y: number; w: number; h: number }>;
 }) {
   const A = "#C8F000";
   const LINE = "#39414F";
   const SOFT = "#222834";
   const MUT = "#7D8799";
-  const rooms = TWIN_ROOMS;
+  const rooms = roomInput ?? TWIN_ROOMS;
   const xL = (y: number) => 66 + ((384 - y) / 338) * 230;
   const xR = (y: number) => 534 - ((384 - y) / 338) * 230;
   const clickable = !!onRoom;
@@ -55,29 +57,29 @@ export function PyramidTwin({
 
   if (layer === "flow" || layer === "allocation") {
     const cen = (r: (typeof rooms)[number]) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
-    const ent = rooms.find((r) => r.id === "entrance")!;
-    const e = cen(ent);
-    ["green", "blue", "yellow", "common"]
-      .filter((id) => selected.includes(id))
-      .forEach((id) => {
-        const r = rooms.find((x) => x.id === id);
-        if (!r) return;
-        const c = cen(r);
-        const mx = (e.x + c.x) / 2;
-        const my = Math.min(e.y, c.y) - 34;
-        ch.push(
-          <path
-            key={"rt" + id}
-            d={"M" + e.x + " " + e.y + " Q " + mx + " " + my + " " + c.x + " " + c.y}
-            fill="none"
-            stroke={A}
-            strokeWidth={layer === "flow" ? 1.8 : 1.2}
-            strokeDasharray="2 6"
-            opacity={layer === "flow" ? 0.85 : 0.55}
-            style={{ animation: "dashFlow 1.1s linear infinite" }}
-          />
-        );
-      });
+    const ent = rooms.find((r) => r.id.includes("entrance") || r.name.toLowerCase().includes("entrance"));
+    if (ent) {
+      const e = cen(ent);
+      rooms
+        .filter((r) => r.id !== ent.id && selected.includes(r.id))
+        .forEach((r) => {
+          const c = cen(r);
+          const mx = (e.x + c.x) / 2;
+          const my = Math.min(e.y, c.y) - 34;
+          ch.push(
+            <path
+              key={"rt" + r.id}
+              d={"M" + e.x + " " + e.y + " Q " + mx + " " + my + " " + c.x + " " + c.y}
+              fill="none"
+              stroke={A}
+              strokeWidth={layer === "flow" ? 1.8 : 1.2}
+              strokeDasharray="2 6"
+              opacity={layer === "flow" ? 0.85 : 0.55}
+              style={{ animation: "dashFlow 1.1s linear infinite" }}
+            />
+          );
+        });
+    }
   }
 
   rooms.forEach((r) => {

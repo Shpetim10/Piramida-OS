@@ -35,7 +35,7 @@ export async function getEvent(id: string) {
       client: true,
       requirements: true,
       spaceReservations: { include: { space: { select: { name: true } } } },
-      assetReservations: { include: { items: true } },
+      assetReservations: { include: { items: { include: { category: true } } } },
       conflicts: { include: { suggestions: true } },
       tasks: true,
       quotes: { include: { items: true } },
