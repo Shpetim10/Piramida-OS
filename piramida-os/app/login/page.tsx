@@ -1,10 +1,60 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ProfileStatus, ProfileType, type RoleCode } from "@prisma/client";
+import { prisma } from "@/lib/db/prisma";
+import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { DEMO_PERSONAS, DEMO_COOKIE } from "@/lib/demo/personas";
 
 export const dynamic = "force-dynamic";
 
+const ADMIN_ROLES: RoleCode[] = ["SUPER_ADMIN", "ADMIN"];
+
+// Only allow relative, same-origin paths as a post-login destination so a
+// crafted `next` value can't redirect off-site.
+function safeNext(next: string | undefined): string | null {
+  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
+  return null;
+}
+
+// Resolve where this auth user lands, by role then profile type.
+async function landingForAuthUser(authUserId: string): Promise<string> {
+  const profile = await prisma.profile.findFirst({
+    where: { authUserId, deletedAt: null },
+    select: { type: true, status: true, profileRoles: { select: { role: { select: { code: true } } } } },
+  });
+  if (!profile) return "/dashboard";
+  const roleCodes = profile.profileRoles.map((pr) => pr.role.code);
+  if (roleCodes.some((r) => ADMIN_ROLES.includes(r))) return "/admin";
+  if (profile.type === ProfileType.STAFF) return "/manager";
+  if (profile.type === ProfileType.ORGANIZER) {
+    // Unapproved organizers can sign in but only reach the holding page.
+    return profile.status === ProfileStatus.ACTIVE ? "/organizer" : "/pending-approval";
+  }
+  return "/dashboard";
+}
+
+// --- Real Supabase email/password sign-in ---------------------------------
+async function signIn(formData: FormData) {
+  "use server";
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const next = safeNext(formData.get("next")?.toString() || undefined);
+  const back = (msg: string) =>
+    `/login?error=${encodeURIComponent(msg)}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
+
+  if (!email || !password) redirect(back("Enter your email and password"));
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) redirect(back("Authentication is not configured"));
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.user) redirect(back(error?.message ?? "Invalid email or password"));
+
+  redirect(next ?? (await landingForAuthUser(data.user.id)));
+}
+
+// --- DEMO_MODE one-click persona login (unchanged behaviour) ----------------
 async function loginAs(formData: FormData) {
   "use server";
   const profileId = String(formData.get("profileId"));
@@ -12,41 +62,192 @@ async function loginAs(formData: FormData) {
   if (!valid) return;
   const c = await cookies();
   c.set(DEMO_COOKIE, profileId, { httpOnly: true, sameSite: "lax", path: "/" });
-  redirect("/dashboard");
+  // Demo personas mirror authUserId = profileId, so the same resolver routes
+  // each persona to its home (organizer → /organizer, staff → /manager, …).
+  const next = safeNext(formData.get("next")?.toString() || undefined);
+  redirect(next ?? (await landingForAuthUser(profileId)));
 }
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; error?: string }>;
+}) {
+  const { next, error } = await searchParams;
+  const nextDest = safeNext(next);
   const demoMode = process.env.DEMO_MODE === "true";
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    font: "600 11px/1 Inter, sans-serif",
+    letterSpacing: ".02em",
+    color: "#7D8799",
+    marginBottom: 8,
+  };
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    borderRadius: 11,
+    border: "1px solid rgba(255,255,255,.1)",
+    background: "#0D0D12",
+    color: "#fff",
+    padding: "12px 14px",
+    font: "500 14px Inter, sans-serif",
+    outline: "none",
+  };
+
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-8">
-      <div className="w-full max-w-md">
-        <p className="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">Pyramid OS · Launch Control</p>
-        <h1 className="text-2xl font-semibold mb-1">Sign in</h1>
-        <p className="text-sm text-zinc-400 mb-6">
-          {demoMode
-            ? "Demo mode: pick a seeded persona to explore the system with real data."
-            : "Demo mode is off — wire Supabase Auth to sign in."}
-        </p>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#0D0D12",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "Inter, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(680px 420px at 50% -5%,rgba(200,240,0,.12),transparent 60%)",
+          pointerEvents: "none",
+        }}
+      />
 
-        {demoMode && (
-          <div className="space-y-2">
-            {DEMO_PERSONAS.map((p) => (
-              <form key={p.profileId} action={loginAs}>
-                <input type="hidden" name="profileId" value={p.profileId} />
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-left hover:border-amber-500/60 hover:bg-zinc-800 transition"
-                >
-                  <span className="font-medium">{p.label}</span>
-                  <span className="text-xs rounded bg-zinc-800 px-2 py-1 text-amber-300">{p.role}</span>
-                </button>
-              </form>
-            ))}
+      <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 420 }}>
+        {/* Brand */}
+        <Link
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 11,
+            textDecoration: "none",
+            marginBottom: 22,
+          }}
+        >
+          <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
+            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
+            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
+          </svg>
+          <div style={{ textAlign: "left" }}>
+            <div style={{ font: "800 17px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
+              Pyramid OS
+            </div>
+            <div style={{ font: "600 8px/1.4 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".22em", marginTop: 3 }}>
+              PYRAMID OF TIRANA
+            </div>
           </div>
-        )}
+        </Link>
 
-        <div className="mt-8 text-sm text-zinc-500">
-          <Link href="/events" className="underline hover:text-zinc-300">
+        <div
+          style={{
+            border: "1px solid rgba(255,255,255,.08)",
+            borderRadius: 20,
+            background: "#151821",
+            padding: 28,
+          }}
+        >
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "6px 13px", border: "1px solid rgba(200,240,0,.28)", borderRadius: 100, background: "rgba(200,240,0,.05)", marginBottom: 18 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C8F000", boxShadow: "0 0 8px #C8F000" }} />
+            <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".18em" }}>
+              LAUNCH CONTROL
+            </span>
+          </div>
+
+          <h1 style={{ font: "800 26px/1.05 Inter, sans-serif", letterSpacing: "-.03em", color: "#fff", margin: "0 0 7px" }}>
+            Sign in
+          </h1>
+          <p style={{ font: "400 14px/1.5 Inter, sans-serif", color: "#AEB5C2", margin: "0 0 22px" }}>
+            Access launch control for the Pyramid of Tirana.
+          </p>
+
+          {error && (
+            <div style={{ marginBottom: 18, borderRadius: 11, border: "1px solid rgba(255,90,90,.32)", background: "rgba(255,90,90,.08)", padding: "11px 14px", font: "500 13px/1.4 Inter, sans-serif", color: "#FF9B9B" }}>
+              {error}
+            </div>
+          )}
+
+          <form action={signIn} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {nextDest && <input type="hidden" name="next" value={nextDest} />}
+            <div>
+              <label htmlFor="email" style={labelStyle}>EMAIL</label>
+              <input id="email" name="email" type="email" autoComplete="email" required placeholder="you@pyramidos.al" style={inputStyle} />
+            </div>
+            <div>
+              <label htmlFor="password" style={labelStyle}>PASSWORD</label>
+              <input id="password" name="password" type="password" autoComplete="current-password" required placeholder="••••••••" style={inputStyle} />
+            </div>
+            <button
+              type="submit"
+              style={{
+                marginTop: 2,
+                width: "100%",
+                borderRadius: 11,
+                border: "none",
+                background: "#C8F000",
+                color: "#0D0D12",
+                padding: "13px 18px",
+                font: "700 14px Inter, sans-serif",
+                cursor: "pointer",
+                boxShadow: "0 8px 26px rgba(200,240,0,.22)",
+              }}
+            >
+              Sign in
+            </button>
+          </form>
+
+          {demoMode && (
+            <div style={{ marginTop: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{ height: 1, flex: 1, background: "rgba(255,255,255,.08)" }} />
+                <span style={{ font: "600 9px/1 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".18em" }}>
+                  DEMO PERSONAS
+                </span>
+                <div style={{ height: 1, flex: 1, background: "rgba(255,255,255,.08)" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {DEMO_PERSONAS.map((p) => (
+                  <form key={p.profileId} action={loginAs}>
+                    <input type="hidden" name="profileId" value={p.profileId} />
+                    {nextDest && <input type="hidden" name="next" value={nextDest} />}
+                    <button
+                      type="submit"
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        borderRadius: 11,
+                        border: "1px solid rgba(255,255,255,.09)",
+                        background: "#0D0D12",
+                        padding: "11px 14px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <span style={{ font: "600 14px Inter, sans-serif", color: "#fff" }}>{p.label}</span>
+                      <span style={{ font: "600 10px 'JetBrains Mono', monospace", letterSpacing: ".06em", color: "#C8F000", background: "rgba(200,240,0,.08)", border: "1px solid rgba(200,240,0,.2)", borderRadius: 6, padding: "3px 7px" }}>
+                        {p.role}
+                      </span>
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: 18 }}>
+          <Link href="/events" style={{ font: "500 13px Inter, sans-serif", color: "#7D8799", textDecoration: "none" }}>
             View public events →
           </Link>
         </div>

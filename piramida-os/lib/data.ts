@@ -123,28 +123,48 @@ export const ROOM_PRICE: Record<string, number> = {
   entrance: 700,
 };
 
-export const DURATION_MULT: Record<string, number> = {
-  "Half day": 0.6,
-  "Full day": 1,
-  "2 days": 1.9,
-  "3 days": 2.7,
-};
+export const MIN_DURATION_DAYS = 1;
+export const MAX_DURATION_DAYS = 14;
 
-export const DURATIONS = ["Half day", "Full day", "2 days", "3 days"];
+export type DayType = "half" | "full";
+export const HALF_DAY_WEIGHT = 0.55;
+export const FULL_DAY_WEIGHT = 1;
 
-export interface EquipItem {
+// A full day bills at the base room rate; a half day at 0.55x. The space
+// multiplier is the sum of each scheduled day's weight, so mixed half/full and
+// non-contiguous schedules price correctly.
+export function dayWeight(type: DayType): number {
+  return type === "half" ? HALF_DAY_WEIGHT : FULL_DAY_WEIGHT;
+}
+
+// Individually-priced assets. Quantities are pre-filled from the AI extraction
+// (needKey maps to an EventIntake need) and freely editable by the organizer.
+export interface AssetItem {
   id: string;
   label: string;
   sub: string;
-  price: number;
+  unit: number; // € per unit
+  needKey: string;
+  max: number;
 }
 
-export const EQUIPMENT: EquipItem[] = [
-  { id: "av", label: "AV Package", sub: "4 mics · screen · projector", price: 1850 },
-  { id: "stage", label: "Stage & Lighting", sub: "Rig + operator", price: 950 },
-  { id: "livestream", label: "Livestream", sub: "Multi-cam + stream", price: 1200 },
-  { id: "recording", label: "Recording", sub: "Edited session videos", price: 700 },
+export const ASSETS: AssetItem[] = [
+  { id: "wirelessMicrophones", label: "Wireless microphones", sub: "Handheld / lapel", unit: 120, needKey: "wirelessMicrophones", max: 12 },
+  { id: "wiredMicrophones", label: "Wired microphones", sub: "Podium / stage", unit: 60, needKey: "wiredMicrophones", max: 12 },
+  { id: "screens", label: "Screens", sub: "Projection / LED", unit: 250, needKey: "screens", max: 6 },
+  { id: "projectors", label: "Projectors", sub: "4K projector", unit: 300, needKey: "projectors", max: 6 },
+  { id: "speakers", label: "Speakers", sub: "PA speakers", unit: 180, needKey: "speakers", max: 12 },
+  { id: "chairs", label: "Chairs", sub: "Stackable seating", unit: 4, needKey: "chairs", max: 500 },
+  { id: "tables", label: "Tables", sub: "Trestle / round", unit: 18, needKey: "tables", max: 80 },
 ];
+
+// Optional guest-facing event staff (hosts, ushers, registration). Priced per
+// head. Setup/teardown crew is the venue's responsibility and NOT billed here.
+export const STAFF_COST_PER_PERSON = 95;
+
+export function suggestedStaff(guests: number): number {
+  return Math.max(2, Math.ceil(guests / 50));
+}
 
 export interface ServiceItem {
   id: string;
@@ -158,7 +178,6 @@ export const SERVICES: ServiceItem[] = [
   { id: "catering", label: "Catering", sub: "Coffee + lunch / head", perHead: 14 },
   { id: "registration", label: "Registration & QR", sub: "Desks + check-in", price: 450 },
   { id: "security", label: "Security", sub: "Door + crowd", price: 600 },
-  { id: "crew", label: "Hosts & Crew", sub: "Setup → teardown", price: 1640 },
 ];
 
 export const ROOM_NAME: Record<string, string> = {
@@ -207,26 +226,3 @@ export function recRooms(attendees: number): string[] {
 export function fmt(n: number): string {
   return Math.round(n).toLocaleString("en-US");
 }
-
-// ---- Organizer dashboard / requests ----
-
-export const DASH_STATS = [
-  { label: "Active Event", value: "1", sub: "In planning", accent: true },
-  { label: "Upcoming Events", value: "2", sub: "Approved", accent: false },
-  { label: "Past Events", value: "4", sub: "Completed", accent: false },
-  { label: "Pending Requests", value: "1", sub: "Awaiting manager", accent: false },
-];
-
-export const MY_EVENTS = [
-  { title: "NextGen Startup Summit 2026", date: "18 Jul 2026", status: "Planning", guests: "180", color: "#C8F000" },
-  { title: "Lumen Product Launch", date: "30 Aug 2026", status: "Approved", guests: "120", color: "#22C55E" },
-  { title: "Q3 Investor Day", date: "14 Sep 2026", status: "Published", guests: "90", color: "#2A6FDB" },
-  { title: "Lumen Summer Mixer", date: "02 Jun 2026", status: "Completed", guests: "140", color: "#7D8799" },
-  { title: "Design Sprint Demo", date: "21 Apr 2026", status: "Completed", guests: "55", color: "#7D8799" },
-];
-
-export const REQUESTS = [
-  { event: "NextGen Startup Summit 2026", date: "Submitted 18 Jun", status: "Pending manager approval", sc: "#F59E0B", desc: "4 spaces · 180 guests · €10,516 — awaiting Event Manager review." },
-  { event: "Lumen Product Launch", date: "Submitted 02 Jun", status: "Approved", sc: "#22C55E", desc: "Green Room + Entrance approved. Reservations confirmed." },
-  { event: "Q3 Investor Day", date: "Submitted 21 May", status: "Changes requested", sc: "#EF4444", desc: "Manager suggested moving to Blue Room for better capacity fit." },
-];

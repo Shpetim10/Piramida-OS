@@ -159,6 +159,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
 // ---------- Header labels per screen ----------
 export const ADMIN_LABELS: Record<string, [string, string]> = {
   approvals: ["ACCESS", "Organizer Approvals"],
+  requests: ["INTAKE", "Event Requests"],
   staff: ["ACCESS", "Staff Management"],
   "staff-new": ["ACCESS", "New Staff Account"],
   "staff-edit": ["ACCESS", "Edit Staff Account"],

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useViewport } from "@/lib/useViewport";
 import { MgrIcon } from "@/components/manager/twin";
 import { FOCUS_EVENT_ID, FOCUS_EVENT_NAME, SCREEN_LABELS } from "@/lib/manager/data";
+import { logoutAction } from "@/lib/auth/logout";
 
 const A = "#C8F000";
 
@@ -222,6 +223,31 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
               <div style={{ font: "500 10px/1.3 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 2 }}>Event Manager</div>
             </div>
           </div>
+
+          <form action={logoutAction} style={{ margin: 0 }}>
+            <button
+              type="submit"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 9,
+                width: "100%",
+                padding: 11,
+                border: "1px solid rgba(255,255,255,.1)",
+                borderRadius: 10,
+                background: "transparent",
+                color: "#AEB5C2",
+                font: "600 12px Inter, sans-serif",
+                cursor: "pointer",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              </svg>
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
 

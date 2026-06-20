@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useViewport } from "@/lib/useViewport";
 import { ADMIN_LABELS } from "@/lib/admin/data";
+import { logoutAction } from "@/lib/auth/logout";
 
 const A = "#C8F000";
 
@@ -12,6 +13,7 @@ const A = "#C8F000";
 export function AdminIcon({ name, color = "currentColor" }: { name: string; color?: string }) {
   const P: Record<string, string> = {
     approvals: "M9 12l2 2 4-4M12 3l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8V6z",
+    requests: "M5 4h11l3 3v13H5zM15 4v4h4M8 13h7M8 17h5",
     staff: "M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM3 20c0-3.3 2.7-5 6-5s6 1.7 6 5M16 4a3 3 0 010 6M18 20c0-2.6-1-4-3-4.6",
     permissions: "M7 11V8a5 5 0 0110 0v3M5 11h14v9H5zM12 15v2",
     check: "M4 12l5 5L20 6",
@@ -26,6 +28,7 @@ export function AdminIcon({ name, color = "currentColor" }: { name: string; colo
 
 function resolveScreen(pathname: string): string {
   if (pathname.startsWith("/admin/organizer-approvals")) return "approvals";
+  if (pathname.startsWith("/admin/event-requests")) return "requests";
   if (pathname === "/admin/users/new") return "staff-new";
   if (pathname.startsWith("/admin/users/") && pathname !== "/admin/users") return "staff-edit";
   if (pathname.startsWith("/admin/users")) return "staff";
@@ -49,6 +52,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   const nav: NavItem[] = [
     { id: "approvals", label: "Organizer Approvals", icon: "approvals", href: "/admin/organizer-approvals", badge: "3" },
+    { id: "requests", label: "Event Requests", icon: "requests", href: "/admin/event-requests" },
     { id: "staff", label: "Staff Management", icon: "staff", href: "/admin/users" },
     { id: "permissions", label: "Permissions", icon: "permissions", href: "/admin/permissions" },
   ];
@@ -157,6 +161,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <div style={{ font: "500 10px/1.3 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 2 }}>Administrator</div>
             </div>
           </div>
+
+          <form action={logoutAction} style={{ margin: 0 }}>
+            <button
+              type="submit"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 9,
+                width: "100%",
+                padding: 11,
+                border: "1px solid rgba(255,255,255,.1)",
+                borderRadius: 10,
+                background: "transparent",
+                color: "#AEB5C2",
+                font: "600 12px Inter, sans-serif",
+                cursor: "pointer",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              </svg>
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
 

@@ -125,10 +125,56 @@ export function deterministicExtract(text: string): EventExtraction {
 // Submission
 // ---------------------------------------------------------------------------
 
+const clarificationItem = z.object({
+  question: trimmed(500),
+  answer: trimmed(2000),
+});
+const dayTypeEnum = z.enum(["half", "full"]);
+const scheduleDayInput = z.object({
+  date: trimmed(40).optional(),
+  type: dayTypeEnum.optional(),
+});
+const requestScheduleInput = z.object({
+  startDate: trimmed(40).optional(),
+  endDate: trimmed(40).optional(),
+  days: z.array(scheduleDayInput).max(31).optional(),
+});
+const requestConfigurationInput = z.object({
+  attendees: z.coerce.number().int().nonnegative().optional(),
+  days: z
+    .array(
+      z.object({
+        day: z.coerce.number().int().positive(),
+        date: trimmed(40).optional(),
+        type: dayTypeEnum.optional(),
+      }),
+    )
+    .max(31)
+    .optional(),
+  assets: z.array(trimmed(120)).max(40).optional(),
+  staff: z
+    .object({
+      count: z.coerce.number().int().nonnegative().max(500),
+      costPerPerson: z.coerce.number().nonnegative().max(100000),
+    })
+    .nullable()
+    .optional(),
+  services: z.array(trimmed(120)).max(20).optional(),
+  access: z
+    .object({
+      externalGuests: z.boolean(),
+      visibility: z.enum(["public", "private"]),
+    })
+    .optional(),
+  estimatedTotal: z.coerce.number().nonnegative().optional(),
+});
 const submitOrganizerRequestInput = z.object({
   title: trimmed(200).optional(),
   rawText: requiredText(20000),
   channel: trimmed(40).optional(),
+  clarifications: z.array(clarificationItem).max(30).optional(),
+  schedule: requestScheduleInput.optional(),
+  configuration: requestConfigurationInput.optional(),
 });
 
 /** Organizer self-service submission. Pending/disabled organizers are blocked. */
@@ -148,6 +194,16 @@ export async function submitOrganizerEventRequest(input: unknown) {
   });
   if (!contact) throw new AuthError("Organizer contact not found", 404);
 
+  const hasClarifications =
+    (data.clarifications && data.clarifications.length > 0) || data.schedule || data.configuration;
+  const clarifications: Prisma.InputJsonValue | undefined = hasClarifications
+    ? {
+        answers: data.clarifications ?? [],
+        schedule: data.schedule ?? null,
+        configuration: data.configuration ?? null,
+      }
+    : undefined;
+
   const request = await prisma.eventRequest.create({
     data: {
       orgId,
@@ -159,6 +215,7 @@ export async function submitOrganizerEventRequest(input: unknown) {
       channel: data.channel ?? "portal",
       status: EventRequestStatus.RECEIVED,
       approvalStatus: EventApprovalStatus.PENDING_APPROVAL,
+      clarifications,
     },
   });
   await createAuditLog({

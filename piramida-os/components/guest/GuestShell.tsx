@@ -114,6 +114,27 @@ export function GuestShell({ children }: { children: React.ReactNode }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Link
+            href="/login"
+            style={{
+              display: isMobile ? "none" : "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "11px 16px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,.14)",
+              background: "transparent",
+              color: "#fff",
+              font: "600 13px Inter, sans-serif",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" />
+            </svg>
+            Sign in
+          </Link>
+          <Link
             href="/become"
             style={{
               display: "inline-flex",
@@ -187,6 +208,23 @@ export function GuestShell({ children }: { children: React.ReactNode }) {
               {n.label}
             </Link>
           ))}
+          <Link
+            href="/login"
+            onClick={() => setMenuOpen(false)}
+            style={{
+              textAlign: "left",
+              marginTop: 4,
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,.14)",
+              background: "transparent",
+              color: "#fff",
+              font: "700 15px Inter, sans-serif",
+              textDecoration: "none",
+            }}
+          >
+            Sign in
+          </Link>
         </div>
       )}
 

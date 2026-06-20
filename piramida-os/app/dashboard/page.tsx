@@ -3,12 +3,16 @@ import { redirect } from "next/navigation";
 import { ProfileType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentProfile } from "@/lib/auth/guards";
+import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { DEMO_COOKIE } from "@/lib/demo/personas";
 
 export const dynamic = "force-dynamic";
 
 async function logout() {
   "use server";
+  // Clear both auth sources: the real Supabase session and the demo cookie.
+  const supabase = await createSupabaseServerClient();
+  if (supabase) await supabase.auth.signOut();
   const c = await cookies();
   c.delete(DEMO_COOKIE);
   redirect("/login");
