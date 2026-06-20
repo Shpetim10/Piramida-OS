@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { AuthError, requireStaff, requirePermission } from "@/lib/auth/guards";
 import {
   listAssetCategories,
   listAssets,
@@ -8,11 +9,13 @@ import {
 } from "@/lib/services/inventory";
 import { ok, handleApiError } from "@/lib/api/respond";
 
-/**
- * GET  /api/inventory          — returns { categories, assets, batches, kits }
- * POST /api/inventory          — creates a new asset category
- */
 export async function GET(req: NextRequest) {
+  try {
+    await requireStaff();
+  } catch (e) {
+    if (e instanceof AuthError) return Response.json({ error: e.message }, { status: e.status });
+    throw e;
+  }
   try {
     const { searchParams } = new URL(req.url);
     const categoryId = searchParams.get("categoryId") ?? undefined;
@@ -29,6 +32,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    await requirePermission("inventory.manage");
+  } catch (e) {
+    if (e instanceof AuthError) return Response.json({ error: e.message }, { status: e.status });
+    throw e;
+  }
   try {
     const body = await req.json();
     const category = await createAssetCategory(body);

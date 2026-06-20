@@ -10,14 +10,11 @@ export const dynamic = "force-dynamic";
 
 const ADMIN_ROLES: RoleCode[] = ["SUPER_ADMIN", "ADMIN"];
 
-// Only allow relative, same-origin paths as a post-login destination so a
-// crafted `next` value can't redirect off-site.
 function safeNext(next: string | undefined): string | null {
   if (next && next.startsWith("/") && !next.startsWith("//")) return next;
   return null;
 }
 
-// Resolve where this auth user lands, by role then profile type.
 async function landingForAuthUser(authUserId: string): Promise<string> {
   const profile = await prisma.profile.findFirst({
     where: { authUserId, deletedAt: null },
@@ -28,13 +25,11 @@ async function landingForAuthUser(authUserId: string): Promise<string> {
   if (roleCodes.some((r) => ADMIN_ROLES.includes(r))) return "/admin";
   if (profile.type === ProfileType.STAFF) return "/manager";
   if (profile.type === ProfileType.ORGANIZER) {
-    // Unapproved organizers can sign in but only reach the holding page.
     return profile.status === ProfileStatus.ACTIVE ? "/organizer" : "/pending-approval";
   }
   return "/dashboard";
 }
 
-// --- Real Supabase email/password sign-in ---------------------------------
 async function signIn(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "").trim();
@@ -54,7 +49,6 @@ async function signIn(formData: FormData) {
   redirect(next ?? (await landingForAuthUser(data.user.id)));
 }
 
-// --- DEMO_MODE one-click persona login (unchanged behaviour) ----------------
 async function loginAs(formData: FormData) {
   "use server";
   const profileId = String(formData.get("profileId"));
@@ -62,8 +56,6 @@ async function loginAs(formData: FormData) {
   if (!valid) return;
   const c = await cookies();
   c.set(DEMO_COOKIE, profileId, { httpOnly: true, sameSite: "lax", path: "/" });
-  // Demo personas mirror authUserId = profileId, so the same resolver routes
-  // each persona to its home (organizer → /organizer, staff → /manager, …).
   const next = safeNext(formData.get("next")?.toString() || undefined);
   redirect(next ?? (await landingForAuthUser(profileId)));
 }

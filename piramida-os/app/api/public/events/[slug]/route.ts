@@ -6,6 +6,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
   try {
     const { slug } = await params;
     const event = await getPublishedEventBySlug(slug);
+    if (!event) return Response.json({ error: "Not found" }, { status: 404 });
     return ok(event);
   } catch (err) {
     return handleApiError(err);

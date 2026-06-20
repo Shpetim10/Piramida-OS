@@ -6,6 +6,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   try {
     const { token } = await params;
     const ticket = await getTicketByToken(token);
+    if (!ticket) return Response.json({ error: "Ticket not found" }, { status: 404 });
     return ok(ticket);
   } catch (err) {
     return handleApiError(err);

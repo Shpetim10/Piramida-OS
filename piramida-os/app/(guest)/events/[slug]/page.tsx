@@ -2,29 +2,8 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { PyramidTwin } from "@/lib/PyramidTwin";
 import { useViewport } from "@/lib/useViewport";
-
-type AgendaItem = {
-  title: string;
-  description: string | null;
-  startsAt: string | null;
-  endsAt: string | null;
-  space: string | null;
-};
-
-type PublishedEvent = {
-  slug: string;
-  title: string | null;
-  description: string | null;
-  start: string | null;
-  end: string | null;
-  venue: string | null;
-  registrationOpen: boolean;
-  capacity: number | null;
-  remainingCapacity: number | null;
-  agendaItems: AgendaItem[];
-};
+import { PyramidTwin } from "@/components/manager/twin";
 
 const LIME = "#C8F000";
 
@@ -36,59 +15,97 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   default: "#C8F000",
 };
 
+interface AgendaItem {
+  title: string;
+  description: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  space: string | null;
+}
+
+interface PublicEventDetail {
+  slug: string;
+  title: string;
+  description: string | null;
+  start: string | null;
+  end: string | null;
+  venue: string | null;
+  registrationOpen: boolean;
+  capacity: number | null;
+  remainingCapacity: number | null;
+  agendaItems: AgendaItem[];
+}
+
+interface RegisteredState {
+  status: string;
+  ticketToken: string | null;
+}
+
+function formatFullDate(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function formatTime(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
 export default function EventDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const { isMobile } = useViewport();
   const padX = isMobile ? 18 : 52;
 
-  const [event, setEvent] = useState<PublishedEvent | null>(null);
+  const [event, setEvent] = useState<PublicEventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Registration form state
-  const [regState, setRegState] = useState<"idle" | "form" | "submitting" | "done">("idle");
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [consent, setConsent] = useState(false);
-  const [regError, setRegError] = useState<string | null>(null);
-  const [ticketToken, setTicketToken] = useState<string | null>(null);
+  const [formState, setFormState] = useState({ fullName: "", email: "", company: "", consentAccepted: false });
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState<RegisteredState | null>(null);
 
   useEffect(() => {
-    fetch(`/api/public/events/${slug}`)
-      .then(async (r) => {
-        if (r.status === 404) { setNotFound(true); return; }
-        const d = await r.json();
-        if (d && d.slug) setEvent(d);
-        else setNotFound(true);
+    fetch(`/api/public/events/${encodeURIComponent(slug)}`)
+      .then((r) => {
+        if (r.status === 404) { setNotFound(true); return null; }
+        if (!r.ok) return r.json().then((d: { error?: string }) => Promise.reject(d.error ?? "Failed"));
+        return r.json();
       })
+      .then((data: PublicEventDetail | null) => { if (data) setEvent(data); })
+      .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [slug]);
 
-  async function register() {
-    if (!fullName.trim() || !email.trim() || !consent) return;
-    setRegState("submitting");
-    setRegError(null);
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formState.consentAccepted) { setFormError("Please accept the terms to continue."); return; }
+    setSubmitting(true);
+    setFormError(null);
     try {
-      const res = await fetch(`/api/public/events/${slug}/register`, {
+      const res = await fetch(`/api/public/events/${encodeURIComponent(slug)}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, email, consentAccepted: true }),
+        body: JSON.stringify({
+          fullName: formState.fullName,
+          email: formState.email,
+          company: formState.company || undefined,
+          consentAccepted: true,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setRegError(data.error ?? "Registration failed. Please try again.");
-        setRegState("form");
-        return;
-      }
-      setTicketToken(data.ticket?.token ?? null);
-      setRegState("done");
+      const data = await res.json() as { status?: string; ticketToken?: string | null; error?: string };
+      if (!res.ok) { setFormError(data.error ?? "Registration failed."); return; }
+      setRegistered({ status: data.status ?? "CONFIRMED", ticketToken: data.ticketToken ?? null });
     } catch {
-      setRegError("Network error. Please try again.");
-      setRegState("form");
+      setFormError("Network error — please try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  const color = EVENT_TYPE_COLORS.default;
+  const filledPct = event?.capacity && event.remainingCapacity !== null
+    ? Math.round(((event.capacity - event.remainingCapacity) / event.capacity) * 100)
+    : null;
 
   if (loading) {
     return (
@@ -107,16 +124,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
     );
   }
 
-  const filledSpots = event.capacity != null && event.remainingCapacity != null
-    ? event.capacity - event.remainingCapacity
-    : null;
-  const fillPct = event.capacity && filledSpots != null
-    ? Math.round((filledSpots / event.capacity) * 100)
-    : null;
-
-  const startDate = event.start ? new Date(event.start) : null;
-  const endDate = event.end ? new Date(event.end) : null;
-
   return (
     <div>
       {/* Hero */}
@@ -125,7 +132,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
           position: "relative",
           overflow: "hidden",
           height: "clamp(220px,30vw,360px)",
-          background: `linear-gradient(135deg,${color}33,#151821 70%)`,
+          background: "linear-gradient(135deg,rgba(42,111,219,.3),#151821 70%)",
           display: "flex",
           alignItems: "flex-end",
         }}
@@ -149,7 +156,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
               textDecoration: "none",
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round">
               <path d="M15 18l-6-6 6-6" />
             </svg>
             All events
@@ -158,9 +165,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
             {event.title ?? "Upcoming Event"}
           </h1>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 20, font: "500 14px Inter, sans-serif", color: "#AEB5C2" }}>
-            {startDate && (
-              <span>{startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</span>
-            )}
+            {event.start && <span>{formatFullDate(event.start)}</span>}
             {event.venue && <span>{event.venue}</span>}
             {event.capacity && <span>{event.capacity} guests max</span>}
           </div>
@@ -194,11 +199,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
               <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, overflow: "hidden", marginBottom: 34 }}>
                 {event.agendaItems.map((a, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 18, padding: "15px 18px", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
-                    {a.startsAt && (
-                      <span style={{ font: "600 13px 'JetBrains Mono', monospace", color: LIME, width: 48, flex: "none" }}>
-                        {new Date(a.startsAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    )}
+                    <span style={{ font: "600 13px 'JetBrains Mono', monospace", color: LIME, width: 48, flex: "none" }}>
+                      {formatTime(a.startsAt)}
+                    </span>
                     <span style={{ flex: 1, font: "600 14px Inter, sans-serif", color: "#fff" }}>{a.title}</span>
                     {a.space && <span style={{ font: "500 12px Inter, sans-serif", color: "#7D8799", whiteSpace: "nowrap" }}>{a.space}</span>}
                   </div>
@@ -221,123 +224,133 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
               GENERAL ADMISSION
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 18 }}>
-              <span style={{ font: "800 30px Inter, sans-serif", color: "#fff" }}>Free</span>
+              <span style={{ font: "800 28px Inter, sans-serif", color: "#fff" }}>Free</span>
               <span style={{ font: "500 13px Inter, sans-serif", color: "#7D8799" }}>· registration required</span>
             </div>
 
-            {regState === "done" ? (
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, width: "100%", padding: 15, borderRadius: 12, background: "rgba(34,197,94,.12)", color: "#22C55E", font: "700 15px Inter, sans-serif", marginBottom: 12, boxSizing: "border-box" }}>
-                  ✓ You&apos;re registered!
+            {/* Registered success */}
+            {registered ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
+                  padding: 16, borderRadius: 12,
+                  background: registered.status === "WAITLISTED" ? "rgba(245,158,11,.12)" : "rgba(34,197,94,.12)",
+                  color: registered.status === "WAITLISTED" ? "#F59E0B" : "#22C55E",
+                  font: "700 15px Inter, sans-serif",
+                }}>
+                  {registered.status === "WAITLISTED" ? "⏳ Added to waitlist" : "✓ You're registered!"}
                 </div>
-                {ticketToken && (
-                  <div style={{ padding: 14, borderRadius: 12, background: "rgba(200,240,0,.06)", border: "1px solid rgba(200,240,0,.2)", textAlign: "center" }}>
-                    <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: LIME, letterSpacing: ".12em", marginBottom: 8 }}>YOUR TICKET TOKEN</div>
-                    <div style={{ font: "700 11px 'JetBrains Mono', monospace", color: "#fff", wordBreak: "break-all", letterSpacing: ".06em" }}>{ticketToken}</div>
-                    <div style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", marginTop: 8 }}>Show this code at check-in.</div>
-                  </div>
-                )}
-              </div>
-            ) : regState === "idle" ? (
-              <>
-                {event.registrationOpen ? (
-                  <button
-                    onClick={() => setRegState("form")}
+                {registered.ticketToken && (
+                  <Link
+                    href={`/tickets/${registered.ticketToken}`}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: 9,
-                      width: "100%",
-                      padding: 15,
-                      border: "none",
+                      gap: 8,
+                      padding: "12px 18px",
                       borderRadius: 12,
-                      background: LIME,
-                      color: "#0D0D12",
-                      font: "700 15px Inter, sans-serif",
-                      cursor: "pointer",
-                      boxShadow: "0 8px 26px rgba(200,240,0,.2)",
-                      boxSizing: "border-box",
+                      border: "1px solid rgba(200,240,0,.3)",
+                      background: "rgba(200,240,0,.07)",
+                      color: LIME,
+                      font: "700 13px Inter, sans-serif",
+                      textDecoration: "none",
                     }}
                   >
-                    <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none">
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                      <path d="M14 14h3v3M20 20h.01M17 20h.01M20 17h.01" />
-                    </svg>
-                    Register · Get QR Pass
-                  </button>
-                ) : (
-                  <div style={{ textAlign: "center", padding: 15, borderRadius: 12, background: "#1A1F2B", color: "#7D8799", font: "600 14px Inter, sans-serif" }}>
-                    Registration closed
-                  </div>
+                    View QR ticket →
+                  </Link>
                 )}
-              </>
-            ) : (
+              </div>
+            ) : event.registrationOpen ? (
               /* Registration form */
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,.12)", background: "#0F1218", color: "#fff", font: "400 14px Inter, sans-serif", outline: "none" }}
-                />
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,.12)", background: "#0F1218", color: "#fff", font: "400 14px Inter, sans-serif", outline: "none" }}
-                />
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", font: "500 12px/1.5 Inter, sans-serif", color: "#7D8799" }}>
+              <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <span style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".08em" }}>FULL NAME *</span>
+                  <input
+                    required
+                    value={formState.fullName}
+                    onChange={(e) => setFormState((s) => ({ ...s, fullName: e.target.value }))}
+                    placeholder="Your full name"
+                    style={inputStyle}
+                  />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <span style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".08em" }}>EMAIL *</span>
+                  <input
+                    required
+                    type="email"
+                    value={formState.email}
+                    onChange={(e) => setFormState((s) => ({ ...s, email: e.target.value }))}
+                    placeholder="you@example.com"
+                    style={inputStyle}
+                  />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <span style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".08em" }}>COMPANY</span>
+                  <input
+                    value={formState.company}
+                    onChange={(e) => setFormState((s) => ({ ...s, company: e.target.value }))}
+                    placeholder="Optional"
+                    style={inputStyle}
+                  />
+                </label>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
                   <input
                     type="checkbox"
-                    checked={consent}
-                    onChange={(e) => setConsent(e.target.checked)}
-                    style={{ marginTop: 2, accentColor: LIME }}
+                    checked={formState.consentAccepted}
+                    onChange={(e) => setFormState((s) => ({ ...s, consentAccepted: e.target.checked }))}
+                    style={{ marginTop: 3, accentColor: LIME, flex: "none" }}
                   />
-                  I consent to my name and email being used to process this registration.
+                  <span style={{ font: "400 12px/1.4 Inter, sans-serif", color: "#AEB5C2" }}>
+                    I agree to receive event updates and confirm my registration.
+                  </span>
                 </label>
-                {regError && (
-                  <div style={{ font: "500 12px Inter, sans-serif", color: "#EF4444" }}>{regError}</div>
+                {formError && (
+                  <div style={{ font: "500 12px Inter, sans-serif", color: "#EF4444" }}>{formError}</div>
                 )}
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={register}
-                    disabled={regState === "submitting" || !fullName || !email || !consent}
-                    style={{
-                      flex: 1,
-                      padding: 13,
-                      border: "none",
-                      borderRadius: 10,
-                      background: regState === "submitting" || !fullName || !email || !consent ? "#1A1F2B" : LIME,
-                      color: regState === "submitting" || !fullName || !email || !consent ? "#525B6B" : "#0D0D12",
-                      font: "700 14px Inter, sans-serif",
-                      cursor: regState === "submitting" ? "default" : "pointer",
-                    }}
-                  >
-                    {regState === "submitting" ? "Registering…" : "Confirm Registration"}
-                  </button>
-                  <button
-                    onClick={() => { setRegState("idle"); setRegError(null); }}
-                    style={{ padding: "13px 16px", borderRadius: 10, border: "1px solid rgba(255,255,255,.1)", background: "transparent", color: "#AEB5C2", font: "600 14px Inter, sans-serif", cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 9,
+                    width: "100%",
+                    padding: 15,
+                    border: "none",
+                    borderRadius: 12,
+                    background: submitting ? "#6B7280" : LIME,
+                    color: "#0D0D12",
+                    font: "700 15px Inter, sans-serif",
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    boxShadow: submitting ? "none" : "0 8px 26px rgba(200,240,0,.2)",
+                    transition: "background .15s",
+                  }}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                    <path d="M14 14h3v3M20 20h.01M17 20h.01M20 17h.01" />
+                  </svg>
+                  {submitting ? "Registering…" : "Register · Get QR Pass"}
+                </button>
+              </form>
+            ) : (
+              <div style={{ padding: 16, borderRadius: 12, background: "rgba(125,135,153,.1)", color: "#7D8799", font: "600 14px Inter, sans-serif", textAlign: "center" }}>
+                Registration closed
               </div>
             )}
 
-            {/* Capacity meter */}
-            {event.capacity != null && filledSpots != null && (
+            {/* Capacity bar */}
+            {filledPct !== null && (
               <>
-                <div style={{ font: "500 12px Inter, sans-serif", color: "#7D8799", marginTop: 14, textAlign: "center" }}>
-                  {filledSpots} / {event.capacity} spots filled
+                <div style={{ font: "500 12px Inter, sans-serif", color: "#7D8799", marginTop: 16, textAlign: "center" }}>
+                  {event.capacity! - event.remainingCapacity!} / {event.capacity} spots filled
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.08)", marginTop: 8, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${fillPct}%`, background: LIME, borderRadius: 3 }} />
+                  <div style={{ height: "100%", width: `${filledPct}%`, background: LIME, borderRadius: 3 }} />
                 </div>
               </>
             )}
@@ -361,3 +374,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
     </div>
   );
 }
+
+void EVENT_TYPE_COLORS; // available for future event type coloring
+
+const inputStyle: React.CSSProperties = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid rgba(255,255,255,.1)",
+  background: "#0F1218",
+  color: "#fff",
+  font: "500 13px Inter, sans-serif",
+  outline: "none",
+  width: "100%",
+  boxSizing: "border-box",
+};
