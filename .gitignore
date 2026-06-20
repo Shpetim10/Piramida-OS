@@ -5,6 +5,13 @@
 /.pnp
 .pnp.js
 
+# build artifacts and dependencies in any subdirectory
+node_modules/
+.next/
+out/
+build/
+.turbo/
+
 # testing
 /coverage
 
