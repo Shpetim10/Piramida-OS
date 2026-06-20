@@ -12,3 +12,5 @@ export async function GET(req: NextRequest) {
     return handleApiError(err);
   }
 }
+
+export const dynamic = "force-dynamic";

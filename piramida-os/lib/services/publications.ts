@@ -120,6 +120,16 @@ export async function unpublishEvent(publicationId: string) {
 
 // -- Public reads (guest-safe projections) ----------------------------------
 
+export type PublicEventCategory = "live" | "upcoming" | "past";
+
+function deriveCategory(start: Date | null, end: Date | null): PublicEventCategory {
+  const now = new Date();
+  if (start && start > now) return "upcoming";
+  if (end && end < now) return "past";
+  if (start && start <= now && (!end || end >= now)) return "live";
+  return "upcoming";
+}
+
 export async function listPublishedEvents(filters?: { upcomingOnly?: boolean }) {
   const orgId = await getOrgId();
   const rows = await prisma.eventPublication.findMany({
@@ -127,19 +137,27 @@ export async function listPublishedEvents(filters?: { upcomingOnly?: boolean }) 
       orgId,
       status: PublicationStatus.PUBLISHED,
       deletedAt: null,
-      ...(filters?.upcomingOnly ? { publicStart: { gte: new Date() } } : {}),
+      ...(filters?.upcomingOnly
+        ? {
+            OR: [
+              { publicStart: { gte: new Date() } },
+              { publicEnd: { gte: new Date() } },
+            ],
+          }
+        : {}),
     },
     orderBy: { publicStart: "asc" },
   });
-  // Only guest-safe fields.
   return rows.map((p) => ({
     slug: p.slug,
     title: p.publicTitle,
     description: p.publicDescription,
-    start: p.publicStart,
-    end: p.publicEnd,
+    start: p.publicStart?.toISOString() ?? null,
+    end: p.publicEnd?.toISOString() ?? null,
     venue: p.venueLabel,
     registrationOpen: p.registrationOpen,
+    acceptsExternalGuests: p.registrationOpen,
+    category: deriveCategory(p.publicStart, p.publicEnd),
   }));
 }
 
