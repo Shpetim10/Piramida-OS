@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { usePyramid } from "@/lib/store";
 import { getFloor } from "@/lib/pyramid-data";
 import { FloorSelector } from "./ui/FloorSelector";
+import { FloorLegend } from "./ui/FloorLegend";
 import { InfoPanel } from "./ui/InfoPanel";
 
 // r3f must run client-side only
@@ -14,17 +15,21 @@ const Scene = dynamic(() => import("./three/Scene"), {
 });
 
 export default function PyramidApp() {
-  const { view, floorId } = usePyramid();
+  const { view, floorId, spaceId } = usePyramid();
   const floor = floorId != null ? getFloor(floorId) : undefined;
 
   return (
     <div className="app">
+      {/* Quick veil + lime scan-sweep that replays on every scene change,
+          masking the React content swap and selling the transition. */}
+      <div key={`${view}:${floorId}:${spaceId}`} className="scene-transition" aria-hidden />
+
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">▲</span> Piramida Tirana · <span className="brand-sub">Event Manager</span>
         </div>
         <div className="crumbs">
-          {view === "exterior" && "Exterior — pick a floor"}
+          {view === "exterior" && "2026 Site — pick a floor"}
           {view === "floor" && `${floor?.name} — tap a space`}
           {view === "interior" && `Editing event layout`}
         </div>
@@ -37,7 +42,20 @@ export default function PyramidApp() {
       </div>
 
       <FloorSelector />
+      <FloorLegend />
       <InfoPanel />
+
+      {/* Real-world geometry: the exterior is a live OpenStreetMap extract. */}
+      {view === "exterior" && (
+        <a
+          className="map-attribution"
+          href="https://www.openstreetmap.org/copyright"
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          Site geometry © OpenStreetMap contributors
+        </a>
+      )}
     </div>
   );
 }

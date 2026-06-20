@@ -17,9 +17,9 @@ import { Chair, RoundTable, Stage, solveLayout } from "./Furniture";
 // and the editor clamps to them, so the furniture always fits the static shell.
 // ---------------------------------------------------------------------------
 
-const ROOM_SCALE = 3.4; // metres of interior room per unit of plan footprint
-const MIN_W = 6;
-const MIN_D = 7;
+const ROOM_SCALE = 3.6; // metres of interior room per unit of plan footprint
+const MIN_W = 6.5;
+const MIN_D = 7.5;
 
 export function InteriorRoom({
   event,
@@ -49,14 +49,16 @@ export function InteriorRoom({
 
   return (
     <group>
-      {/* ---- STATIC SHELL (fixed bounding box) ---- */}
+      {/* ---- STATIC SHELL (fixed bounding box) ----
+           The real Pyramid of Tirana interior is white-to-gray concrete, so the
+           shell stays light; the dark scene only frames it. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[span.w, span.d]} />
-        <meshStandardMaterial color="#cfd6e0" />
+        <meshStandardMaterial color="#d6dbe2" roughness={0.92} metalness={0.02} />
       </mesh>
       <mesh position={[0, 1.6, -span.d / 2]} receiveShadow>
         <boxGeometry args={[span.w, 3.2, 0.1]} />
-        <meshStandardMaterial color="#eef2f7" />
+        <meshStandardMaterial color="#f1f4f8" />
       </mesh>
       <mesh position={[-span.w / 2, 1.6, 0]} receiveShadow>
         <boxGeometry args={[0.1, 3.2, span.d]} />
@@ -66,9 +68,23 @@ export function InteriorRoom({
         <boxGeometry args={[0.1, 3.2, span.d]} />
         <meshStandardMaterial color="#e3e8ef" transparent opacity={0.55} />
       </mesh>
+
+      {/* gray baseboard trim around the back wall (architectural detail) */}
+      <mesh position={[0, 0.12, -span.d / 2 + 0.07]}>
+        <boxGeometry args={[span.w, 0.24, 0.06]} />
+        <meshStandardMaterial color="#aab2be" roughness={0.8} />
+      </mesh>
+
+      {/* room-accent header strip near the ceiling */}
       <mesh position={[0, 2.9, -span.d / 2 + 0.06]}>
         <planeGeometry args={[span.w, 0.25]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.4} />
+      </mesh>
+
+      {/* Pyramid OS lime LED inlay — runs along the floor where it meets the back wall */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, -span.d / 2 + 0.32]}>
+        <planeGeometry args={[span.w * 0.9, 0.07]} />
+        <meshStandardMaterial color="#d6ff00" emissive="#d6ff00" emissiveIntensity={0.85} toneMapped={false} />
       </mesh>
 
       {stairs ? (
@@ -89,7 +105,7 @@ export function InteriorRoom({
         </group>
       )}
 
-      <Text position={[0, 0.05, span.d / 2 - 0.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.4} color="#8893a5" anchorX="center">
+      <Text position={[0, 0.05, span.d / 2 - 0.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.4} color="#7d8799" anchorX="center">
         {stairs ? `STAIR TALK · ${event.seats ?? 50} ON STEPS` : `${event.layout.toUpperCase()} · ${event.chairs} seats`}
       </Text>
     </group>
@@ -115,7 +131,7 @@ function StairSeating({ width, depth }: { width: number; depth: number }) {
         const y = (r + 0.5) * rise;
         return (
           <RoundedBox key={r} args={[seatW, rise, tread]} radius={0.04} position={[0, y, z]} castShadow receiveShadow>
-            <meshStandardMaterial color="#bcc3cc" roughness={0.95} metalness={0.04} />
+            <meshStandardMaterial color="#c4cad2" roughness={0.95} metalness={0.04} />
           </RoundedBox>
         );
       })}

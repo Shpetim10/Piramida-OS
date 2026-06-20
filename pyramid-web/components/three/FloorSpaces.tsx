@@ -1,15 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import { RoundedBox, Html } from "@react-three/drei";
+import { Group } from "three";
 import { getFloor, type EventSpace } from "@/lib/pyramid-data";
 import { usePyramid } from "@/lib/store";
 
 const ATRIUM_R = 1.5; // open central atrium radius
 const HALL_INNER = 1.7; // where radial halls start (just outside the atrium)
+const STORY = 1.7; // vertical lift of the upper tier on dense floors
+const DENSE_FLOOR = 8; // floors with more spaces than this get a two-story layout
 
 /** orient a child whose local +z points outward to world direction α (deg). */
 const faceRotY = (angleDeg: number) => Math.PI / 2 - (angleDeg * Math.PI) / 180;
+
+const easeOutBack = (x: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+};
+
+/** Staggered "assembly" entrance: each block springs up from the floor in turn. */
+function Rise({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
+  const ref = useRef<Group>(null);
+  const t = useRef(0);
+  const DUR = 0.5;
+  useFrame((_, dt) => {
+    const g = ref.current;
+    if (!g || t.current >= delay + DUR) return;
+    t.current += dt;
+    const p = Math.max(0, Math.min(1, (t.current - delay) / DUR));
+    g.scale.setScalar(Math.max(0.0001, easeOutBack(p)));
+    g.position.y = (1 - p) * -0.7;
+  });
+  return (
+    <group ref={ref} scale={0.0001} position={[0, -0.7, 0]}>
+      {children}
+    </group>
+  );
+}
 
 /** App-style radial layer of colour-coded tenant cubes for the selected floor. */
 export function FloorSpaces({ floorId }: { floorId: number | "park" }) {
@@ -19,10 +49,16 @@ export function FloorSpaces({ floorId }: { floorId: number | "park" }) {
 
   return (
     <group>
-      {/* base disc */}
+      {/* base disc — white-to-gray concrete interior floor (slightly enlarged) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-        <circleGeometry args={[7.2, 64]} />
-        <meshStandardMaterial color="#eef1f5" />
+        <circleGeometry args={[8.2, 64]} />
+        <meshStandardMaterial color="#e3e7ed" roughness={0.9} metalness={0.02} />
+      </mesh>
+
+      {/* Pyramid OS lime accent rim around the floor plate */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
+        <ringGeometry args={[7.95, 8.15, 96]} />
+        <meshStandardMaterial color="#d6ff00" emissive="#d6ff00" emissiveIntensity={0.6} transparent opacity={0.85} toneMapped={false} />
       </mesh>
 
       {/* central OPEN circular atrium + ring walkway + railing */}
@@ -33,13 +69,17 @@ export function FloorSpaces({ floorId }: { floorId: number | "park" }) {
         <Hall key={`hall-${s.id}`} angle={s.angle} reach={s.radius} />
       ))}
 
-      {floor.spaces.map((space) =>
-        space.stairs ? (
-          <StairsSpace key={space.id} space={space} onSelect={() => selectSpace(space.id)} />
+      {floor.spaces.map((space, i) => {
+        // On dense floors, raise every other block onto an upper tier so the
+        // ring reads as a two-story floor (skip the stairs + glass-front hub).
+        const lifted =
+          floor.spaces.length > DENSE_FLOOR && i % 2 === 1 && !space.stairs && !space.glassFront;
+        return space.stairs ? (
+          <StairsSpace key={space.id} space={space} index={i} onSelect={() => selectSpace(space.id)} />
         ) : (
-          <SpaceCube key={space.id} space={space} onSelect={() => selectSpace(space.id)} />
-        ),
-      )}
+          <SpaceCube key={space.id} space={space} index={i} lift={lifted ? STORY : 0} onSelect={() => selectSpace(space.id)} />
+        );
+      })}
     </group>
   );
 }
@@ -87,7 +127,7 @@ function Hall({ angle, reach }: { angle: number; reach: number }) {
 
 /** Floor-0 staircase space — a clean grey climbable flight; click to open the
  *  stair-talk (50 people, screen, no chairs). Modelled after the reference. */
-function StairsSpace({ space, onSelect }: { space: EventSpace; onSelect: () => void }) {
+function StairsSpace({ space, onSelect, index = 0 }: { space: EventSpace; onSelect: () => void; index?: number }) {
   const [hover, setHover] = useState(false);
   const rad = (space.angle * Math.PI) / 180;
   const x = Math.cos(rad) * space.radius;
@@ -99,6 +139,7 @@ function StairsSpace({ space, onSelect }: { space: EventSpace; onSelect: () => v
 
   return (
     <group position={[x, 0, z]} rotation={[0, faceRotY(space.angle) + Math.PI, 0]}>
+      <Rise delay={index * 0.05}>
       <group
         onClick={(e) => {
           e.stopPropagation();
@@ -133,20 +174,51 @@ function StairsSpace({ space, onSelect }: { space: EventSpace; onSelect: () => v
           <span className="space-pin-dot" style={{ background: space.color }} />
         </div>
       </Html>
+      </Rise>
     </group>
   );
 }
 
-/** A realistic solid tenant block, sitting flat on the floor (no float/glow). */
-function SpaceCube({ space, onSelect }: { space: EventSpace; onSelect: () => void }) {
+/** A realistic solid tenant block. Sits flat on the floor, or — when `lift` is
+ *  set — floats on an upper tier carried by slim columns (two-story floors). */
+function SpaceCube({ space, onSelect, lift = 0, index = 0 }: { space: EventSpace; onSelect: () => void; lift?: number; index?: number }) {
   const [hover, setHover] = useState(false);
   const rad = (space.angle * Math.PI) / 180;
   const x = Math.cos(rad) * space.radius;
   const z = Math.sin(rad) * space.radius;
   const bookable = !!space.eventable;
 
+  const [w, h, d] = space.size;
+  // Local Y of the floor (world y = 0) relative to this group's centre.
+  const floorLocalY = -(h / 2 + lift);
+  const colX = w / 2 - 0.16;
+  const colZ = d / 2 - 0.16;
+
   return (
-    <group position={[x, space.size[1] / 2, z]} rotation={[0, faceRotY(space.angle), 0]}>
+    <group position={[x, space.size[1] / 2 + lift, z]} rotation={[0, faceRotY(space.angle), 0]}>
+      <Rise delay={index * 0.05}>
+      {lift > 0 && (
+        <group>
+          {/* slim support columns down to the floor */}
+          {[
+            [colX, colZ],
+            [-colX, colZ],
+            [colX, -colZ],
+            [-colX, -colZ],
+          ].map(([cx, cz], i) => (
+            <mesh key={i} position={[cx, floorLocalY + lift / 2, cz]} castShadow>
+              <boxGeometry args={[0.12, lift, 0.12]} />
+              <meshStandardMaterial color="#aab2be" roughness={0.85} metalness={0.05} />
+            </mesh>
+          ))}
+          {/* upper-floor plate carrying the block */}
+          <mesh position={[0, -h / 2 - 0.05, 0]} receiveShadow castShadow>
+            <boxGeometry args={[w * 1.08, 0.1, d * 1.08]} />
+            <meshStandardMaterial color="#cfd4db" roughness={0.9} metalness={0.03} />
+          </mesh>
+        </group>
+      )}
+
       <group
         onClick={(e) => {
           e.stopPropagation();
@@ -191,6 +263,7 @@ function SpaceCube({ space, onSelect }: { space: EventSpace; onSelect: () => voi
           )}
         </div>
       </Html>
+      </Rise>
     </group>
   );
 }
