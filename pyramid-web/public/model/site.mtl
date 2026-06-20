@@ -1,0 +1,88 @@
+# Material slots — colours applied at runtime in PyramidModel.tsx
+newmtl pyramid_glass
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl wall
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl roof
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl vegetation
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl roads_primary
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl roads_service
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl paths_footway
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl paths_cycleway
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl paths_steps
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl overlay
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2
+
+newmtl overlay.001
+Kd 0.8 0.8 0.8
+Ka 0 0 0
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.0
+illum 2

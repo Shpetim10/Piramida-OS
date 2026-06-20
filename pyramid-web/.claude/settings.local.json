@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "WebFetch(domain:piramida.edu.al)",
+      "Bash(python3 -)",
+      "Bash(node -e \"const s=require\\('three-stdlib'\\); console.log\\('OBJLoader' in s, 'MTLLoader' in s\\)\")",
+      "Bash(node *)"
+    ]
+  }
+}
