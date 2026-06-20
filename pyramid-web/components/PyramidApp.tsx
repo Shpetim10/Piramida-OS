@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { usePyramid } from "@/lib/store";
 import { getFloor } from "@/lib/pyramid-data";
 import { FloorSelector } from "./ui/FloorSelector";
+import { FloorNav } from "./ui/FloorNav";
 import { FloorLegend } from "./ui/FloorLegend";
 import { InfoPanel } from "./ui/InfoPanel";
 
@@ -43,6 +44,7 @@ export default function PyramidApp() {
       </div>
 
       <FloorSelector />
+      <FloorNav />
       <FloorLegend />
       <InfoPanel />
 

@@ -453,52 +453,156 @@ input[type="range"] {
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
-.space-pin {
+/* ---------- teardrop location pins (drei Html) ---------- */
+.map-pin-link {
+  text-decoration: none;
+}
+.map-pin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 46px;
+  cursor: pointer;
+  user-select: none;
+  transform: translateY(-8px);
+  /* a soft cast shadow follows the teardrop so pins separate from the light park */
+  filter: drop-shadow(0 5px 6px rgba(40, 55, 75, 0.32));
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+.map-pin:hover {
+  transform: translateY(-12px) scale(1.08);
+  filter: drop-shadow(0 10px 12px rgba(40, 55, 75, 0.42));
+}
+/* the teardrop head: a rounded square with one sharp corner rotated to a point */
+.map-pin-head {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 2px solid #ffffff;
+}
+/* counter-rotate the contents so the logo/initials read upright */
+.map-pin-inner {
+  transform: rotate(45deg);
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+.map-pin-initials {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.map-pin-logo {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+/* tenant pins: quiet white heads with a faint outline so they recede */
+.map-pin.tenant {
+  opacity: 0.94;
+}
+.map-pin.tenant .map-pin-head {
+  background: #ffffff;
+  border-color: #dbe1ea;
+}
+/* bookable pins: vivid accent head + lime rim + pulse so the eye lands here */
+.map-pin.bookable .map-pin-head {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(214, 255, 0, 0.65), 0 0 16px rgba(150, 190, 0, 0.5);
+}
+.map-pin.bookable .map-pin-initials {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.map-pin-pulse {
+  position: absolute;
+  top: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  animation: pinPulse 2.4s ease-out infinite;
+}
+@keyframes pinPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.65;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+/* ---------- floor stepper (prev / next) — light, to match the park view ---------- */
+.floor-nav {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(21, 24, 33, 0.72);
-  color: #aeb5c2;
+  gap: 8px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(20, 30, 50, 0.1);
   border-radius: 999px;
-  padding: 3px 9px;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  transform: translateY(-4px);
-  user-select: none;
-  opacity: 0.82;
-  backdrop-filter: blur(3px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 12px 30px rgba(30, 45, 65, 0.2);
+  backdrop-filter: blur(8px);
 }
-.space-pin:hover {
-  opacity: 1;
-  transform: translateY(-6px) scale(1.04);
-}
-.space-pin-dot {
-  width: 8px;
-  height: 8px;
+.floor-nav-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(20, 30, 50, 0.12);
+  background: #ffffff;
+  color: #1b2230;
   border-radius: 50%;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.14s, color 0.14s, transform 0.14s, background 0.14s;
 }
-.space-pin-lock {
-  font-size: 9px;
-  opacity: 0.6;
+.floor-nav-btn:hover:not(:disabled) {
+  border-color: #9bb84a;
+  background: #f5f8ec;
+  transform: translateY(-1px);
 }
-/* non-bookable tenant area — clearly greyed out and not enterable */
-.space-pin.disabled {
-  background: rgba(30, 36, 49, 0.82);
-  color: #9aa3b2;
-  border-color: rgba(255, 255, 255, 0.1);
-  cursor: not-allowed;
-  opacity: 0.85;
-  font-style: italic;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+.floor-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
-.space-pin.disabled:hover {
-  opacity: 0.95;
-  transform: translateY(-4px);
+.floor-nav-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 168px;
+  justify-content: center;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b2230;
+  white-space: nowrap;
+}
+.floor-nav-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c, var(--accent));
+  box-shadow: 0 0 8px var(--c, var(--accent));
 }
 .muted {
   color: #9aa3b2;
