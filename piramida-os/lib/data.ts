@@ -1,5 +1,12 @@
 // Centralized mock data for the Pyramid OS guest + organizer experiences.
 // No backend / Supabase / AI yet — everything here is deterministic demo data.
+//
+// ROOM SOURCE OF TRUTH: the rooms/spaces below are NOT the old six demo rooms.
+// They are derived from the real three.js model dataset in ./pyramid-data.ts
+// (floors, space ids, names, colours, capacities). Prices / facilities are
+// derived from each room's capacity and clearly marked as demo placeholders.
+
+import { FLOORS, type EventSpace, type Floor } from "./pyramid-data";
 
 export const LIME = "#C8F000";
 
@@ -66,11 +73,71 @@ export const EVENT_FILTERS: { id: string; label: string }[] = [
 export const HOME_STATS = [
   { value: "240+", label: "Experiences hosted" },
   { value: "38K", label: "Guests welcomed" },
-  { value: "6", label: "Explorable rooms" },
-  { value: "2.5D", label: "Live building model" },
+  { value: String(FLOORS.reduce((n, f) => n + f.spaces.filter((s) => s.eventable).length, 0)), label: "Bookable rooms" },
+  { value: "3D", label: "Live building twin" },
 ];
 
-// ---- Explore rooms ----
+// ---- Pyramid 3D rooms (derived from lib/pyramid-data.ts) ----
+
+export interface SpaceRef {
+  space: EventSpace;
+  floor: Floor;
+}
+
+/** Every space across every floor of the 3D model, flattened. */
+export const ALL_SPACES: SpaceRef[] = FLOORS.flatMap((f) =>
+  f.spaces.map((space) => ({ space, floor: f }))
+);
+/** Only the rooms that can host an event (eventable === true). */
+export const BOOKABLE_SPACES: SpaceRef[] = ALL_SPACES.filter((r) => r.space.eventable);
+
+const SPACE_BY_ID = new Map(ALL_SPACES.map((r) => [r.space.id, r] as const));
+export function spaceRef(id: string): SpaceRef | undefined {
+  return SPACE_BY_ID.get(id);
+}
+export function floorOfRoom(id: string): Floor["id"] | undefined {
+  return SPACE_BY_ID.get(id)?.floor.id;
+}
+
+/** Fixed seat/chair capacity straight from the 3D dataset (footprint fallback
+ *  for tenant spaces that declare no chair bounds). */
+export function spaceCapacity(s: EventSpace): number {
+  if (s.maxChairs && s.maxChairs > 0) return s.maxChairs;
+  if (s.event?.seats) return s.event.seats;
+  if (s.event?.chairs) return s.event.chairs;
+  return Math.max(12, Math.round(s.size[0] * s.size[2] * 12));
+}
+
+const ROLE_BY_LAYOUT: Record<string, string> = {
+  theater: "Keynote / plenary",
+  classroom: "Workshop / breakout",
+  banquet: "Banquet & dining",
+  standing: "Reception / standing",
+};
+
+function roleFor(r: SpaceRef): string {
+  if (r.space.stairs) return "Stair talk";
+  if (!r.space.eventable) return "Tenant space";
+  return ROLE_BY_LAYOUT[r.space.event?.layout ?? "classroom"] ?? "Event space";
+}
+
+function facilitiesFor(r: SpaceRef): string[] {
+  const cap = spaceCapacity(r.space);
+  const f: string[] = [];
+  if (r.space.stairs) {
+    f.push("Tiered step seating", "Presentation screen");
+  } else {
+    const layout = r.space.event?.layout ?? (r.space.eventable ? "classroom" : "standing");
+    if (layout === "theater") f.push("Stage & projection", "Theatre seating");
+    else if (layout === "banquet") f.push("Round-table banquet", "Catering access");
+    else if (layout === "standing") f.push("Open floor", "Flexible staging");
+    else f.push("Modular furniture", "Writable walls");
+  }
+  f.push(`Capacity up to ${cap}`);
+  if (r.space.glassFront) f.push("Glazed atrium frontage");
+  if (r.space.eventable) f.push("Step-free access");
+  return f;
+}
 
 export interface RoomDetail {
   name: string;
@@ -81,16 +148,27 @@ export interface RoomDetail {
   examples: string[];
 }
 
-export const ROOM_DETAIL: Record<string, RoomDetail> = {
-  green: { name: "Green Room", up: "GREEN ROOM", cap: "120–180", c: "#1F8A5B", facilities: ["Stage & lighting rig", "4K projection wall", "Theatre seating", "Backstage green room", "Step-free access"], examples: ["NextGen Startup Summit", "Future of Culture Forum"] },
-  blue: { name: "Blue Room", up: "BLUE ROOM", cap: "60–120", c: "#2A6FDB", facilities: ["Classroom & boardroom layouts", "Dual 4K screens", "Acoustic movable walls", "Breakout pods"], examples: ["Balkan AI Hackathon", "Tech Tirana 2025"] },
-  yellow: { name: "Yellow Room", up: "YELLOW ROOM", cap: "40–80", c: "#C9A227", facilities: ["Studio pods", "Writable walls", "Modular furniture", "Daylight + blackout"], examples: ["Founders Workshop: 0→1", "Open Data Day"] },
-  orange: { name: "Orange Room", up: "ORANGE ROOM", cap: "50–90", c: "#C0612A", facilities: ["Gallery hanging system", "Track lighting", "Demo plinths", "Power floor boxes"], examples: ["Tirana Design Biennale"] },
-  common: { name: "Common Area", up: "COMMON AREA", cap: "Up to 250", c: "#7A4BD6", facilities: ["Open atrium", "Coffee & catering bar", "Lounge seating", "Natural skylight"], examples: ["Echoes — Sound & Light", "Pyramid Nights"] },
-  entrance: { name: "Entrance", up: "ENTRANCE", cap: "Flow space", c: "#AEB5C2", facilities: ["Registration desks", "QR self check-in", "Cloakroom", "Welcome lounge"], examples: ["Every public event"] },
-};
+/** Room detail keyed by REAL 3D room id — covers every space so any block
+ *  clicked in the 3D scene resolves to a sidebar card. */
+export const ROOM_DETAIL: Record<string, RoomDetail> = Object.fromEntries(
+  ALL_SPACES.map((r) => {
+    const cap = spaceCapacity(r.space);
+    return [
+      r.space.id,
+      {
+        name: r.space.name,
+        up: r.space.name.toUpperCase(),
+        cap: r.space.eventable ? `Up to ${cap}` : `~${cap}`,
+        c: r.space.color,
+        facilities: facilitiesFor(r),
+        examples: r.space.event?.title ? [r.space.event.title] : [r.floor.name],
+      } satisfies RoomDetail,
+    ];
+  })
+);
 
-export const EXPLORE_ORDER = ["green", "blue", "yellow", "orange", "common", "entrance"];
+/** Bookable room ids, in floor order — the explore room shortlist. */
+export const EXPLORE_ORDER: string[] = BOOKABLE_SPACES.map((r) => r.space.id);
 
 // ---- Event detail ----
 
@@ -114,14 +192,11 @@ export const SPEAKERS = [
 
 // ---- Create event: pricing + planning ----
 
-export const ROOM_PRICE: Record<string, number> = {
-  green: 2400,
-  blue: 1100,
-  yellow: 900,
-  orange: 1000,
-  common: 1300,
-  entrance: 700,
-};
+// DEMO PLACEHOLDER: per-day room rate derived from capacity (the 3D dataset has
+// no price field). Not an operational pricing source.
+export const ROOM_PRICE: Record<string, number> = Object.fromEntries(
+  ALL_SPACES.map((r) => [r.space.id, Math.round((500 + spaceCapacity(r.space) * 16) / 50) * 50])
+);
 
 export const MIN_DURATION_DAYS = 1;
 export const MAX_DURATION_DAYS = 14;
@@ -180,31 +255,23 @@ export const SERVICES: ServiceItem[] = [
   { id: "security", label: "Security", sub: "Door + crowd", price: 600 },
 ];
 
-export const ROOM_NAME: Record<string, string> = {
-  green: "Green Room",
-  blue: "Blue Room",
-  yellow: "Yellow Room",
-  orange: "Orange Room",
-  common: "Common Area",
-  entrance: "Entrance",
-};
+export const ROOM_NAME: Record<string, string> = Object.fromEntries(
+  ALL_SPACES.map((r) => [r.space.id, r.space.name])
+);
 
-export const ROOM_ROLE: Record<string, string> = {
-  green: "Keynote stage",
-  blue: "Breakout A",
-  yellow: "Breakout B",
-  common: "Networking & catering",
-  entrance: "Registration & arrival",
-  orange: "Exhibition",
-};
+export const ROOM_ROLE: Record<string, string> = Object.fromEntries(
+  ALL_SPACES.map((r) => [r.space.id, roleFor(r)])
+);
 
-export const ROOM_REASON: Record<string, string> = {
-  green: "180-seat theatre layout anchors your keynote with clean stage sightlines.",
-  blue: "Acoustically isolated 120-cap room for parallel breakout track A.",
-  yellow: "Flexible studio pods host breakout track B for up to 80.",
-  common: "Open atrium with coffee bar absorbs networking and catering flow.",
-  entrance: "Arrival funnel for QR registration and a welcome lounge.",
-};
+export const ROOM_REASON: Record<string, string> = Object.fromEntries(
+  ALL_SPACES.map((r) => {
+    const cap = spaceCapacity(r.space);
+    return [
+      r.space.id,
+      `${r.space.name} on ${r.floor.name} fits ~${cap} guests — a strong match for ${roleFor(r).toLowerCase()}.`,
+    ];
+  })
+);
 
 export const EXAMPLE_PROMPTS = [
   { label: "Startup conference · 180 guests", text: "A startup conference for 180 people with a keynote, two breakout rooms and a networking area with coffee.", att: 180 },
@@ -215,12 +282,33 @@ export const EXAMPLE_PROMPTS = [
 export const DEFAULT_PROMPT =
   "A startup conference for 180 people with a keynote, two breakout rooms and a networking area with coffee.";
 
-// Deterministic room recommendation based on attendee count.
+// Deterministic room recommendation over the FULL 3D room set. Picks bookable
+// rooms from the single best-fitting floor (the one with the most bookable
+// rooms, so multi-room events stay on one level), largest capacity first, until
+// their combined capacity covers the attendee count. Returns real 3D room ids.
 export function recRooms(attendees: number): string[] {
-  if (attendees <= 80) return ["yellow", "entrance"];
-  if (attendees <= 140) return ["green", "entrance"];
-  if (attendees <= 220) return ["green", "blue", "entrance"];
-  return ["green", "blue", "yellow", "common", "entrance"];
+  const byFloor = new Map<Floor["id"], SpaceRef[]>();
+  for (const r of BOOKABLE_SPACES) {
+    const list = byFloor.get(r.floor.id) ?? [];
+    list.push(r);
+    byFloor.set(r.floor.id, list);
+  }
+
+  let best: SpaceRef[] | null = null;
+  for (const rooms of byFloor.values()) {
+    if (!best || rooms.length > best.length) best = rooms;
+  }
+  if (!best) return [];
+
+  const ranked = [...best].sort((a, b) => spaceCapacity(b.space) - spaceCapacity(a.space));
+  const picked: string[] = [];
+  let cum = 0;
+  for (const r of ranked) {
+    picked.push(r.space.id);
+    cum += spaceCapacity(r.space);
+    if (picked.length >= 2 && cum >= attendees) break;
+  }
+  return picked;
 }
 
 export function fmt(n: number): string {

@@ -3,7 +3,8 @@
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useViewport } from "@/lib/useViewport";
-import { PyramidTwin } from "@/components/manager/twin";
+import { PyramidTwin } from "@/lib/PyramidTwin";
+import { recRooms, ROOM_NAME } from "@/lib/data";
 import { getRegistration, saveRegistration } from "@/lib/guest-registrations";
 
 const LIME = "#C8F000";
@@ -132,6 +133,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
       </div>
     );
   }
+
+  const guestRooms = recRooms(event.capacity ?? 180);
 
   return (
     <div>
@@ -371,11 +374,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
               YOUR GUEST MAP
             </div>
             <div style={{ borderRadius: 12, background: "radial-gradient(400px 240px at 50% 30%,rgba(200,240,0,.04),#101319)", padding: 12, marginBottom: 12 }}>
-              <PyramidTwin selected={["green", "blue", "yellow", "entrance", "common"]} labels showRoutes />
+              <PyramidTwin selected={guestRooms} labels showRoutes />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, font: "500 12px Inter, sans-serif", color: "#AEB5C2" }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: LIME }} />
-              Entrance → Registration → Green Room
+              Your spaces · {guestRooms.map((id) => ROOM_NAME[id]).filter(Boolean).join(" → ")}
             </div>
           </div>
         </div>

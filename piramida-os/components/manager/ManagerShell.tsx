@@ -7,6 +7,7 @@ import { useViewport } from "@/lib/useViewport";
 import { MgrIcon } from "@/components/manager/twin";
 import { FOCUS_EVENT_ID, FOCUS_EVENT_NAME, SCREEN_LABELS } from "@/lib/manager/data";
 import { logoutAction } from "@/lib/auth/logout";
+import { BrandMark } from "@/components/BrandLogo";
 
 const A = "#C8F000";
 
@@ -173,10 +174,7 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
 
       <aside style={asideStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "4px 4px 20px" }}>
-          <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.6" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" opacity="0.9" />
-          </svg>
+          <BrandMark height={30} />
           <div style={{ minWidth: 0 }}>
             <div style={{ font: "800 16px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>Pyramid OS</div>
             <div style={{ font: "600 9px/1.4 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".2em", marginTop: 4 }}>

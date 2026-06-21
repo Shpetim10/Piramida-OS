@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useViewport } from "@/lib/useViewport";
 import { logoutAction } from "@/lib/auth/logout";
+import { BrandMark } from "@/components/BrandLogo";
 
 export interface OrganizerIdentity {
   name: string;
@@ -101,10 +102,7 @@ export function OrganizerShell({
     >
       <aside style={asideStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "6px 4px 22px" }}>
-          <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.6" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" opacity="0.9" />
-          </svg>
+          <BrandMark height={32} />
           <div style={{ minWidth: 0 }}>
             <div style={{ font: "800 16px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
               Pyramid OS
