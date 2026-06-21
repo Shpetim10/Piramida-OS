@@ -34,6 +34,9 @@ export interface Pyramid3DProps {
   mode?: Pyramid3DMode;
   /** AI-recommended room ids that glow in Pyramid OS lime on the floor view. */
   highlight?: string[];
+  /** Recommendation mode: grey every room that isn't in `highlight` so the eye
+   *  lands only on the recommended ones. Opt-in (off for explore/guest map). */
+  recommendMode?: boolean;
   /** floor to open on mount (map always; interactive optional). */
   initialFloor?: Floor["id"];
   className?: string;
@@ -45,7 +48,7 @@ export interface Pyramid3DProps {
  * in the shared zustand store (lib/store); this wrapper just sets the initial
  * view for the mode and forwards the presentation flags to the Canvas.
  */
-export function Pyramid3D({ mode = "interactive", highlight, initialFloor, className, style }: Pyramid3DProps) {
+export function Pyramid3D({ mode = "interactive", highlight, recommendMode = false, initialFloor, className, style }: Pyramid3DProps) {
   const reset = usePyramid((s) => s.reset);
   const selectFloor = usePyramid((s) => s.selectFloor);
 
@@ -74,7 +77,7 @@ export function Pyramid3D({ mode = "interactive", highlight, initialFloor, class
       }}
       className={className}
     >
-      <Scene interactive={mode === "interactive"} autoRotate={mode === "map"} highlight={highlight} bare={mode === "ambient"} />
+      <Scene interactive={mode === "interactive"} autoRotate={mode === "map"} highlight={highlight} recommendMode={recommendMode} bare={mode === "ambient"} />
     </div>
   );
 }

@@ -369,3 +369,13 @@ export const FLOORS: Floor[] = [
 export const getFloor = (id: Floor["id"]) => FLOORS.find((f) => f.id === id);
 export const getSpace = (floorId: Floor["id"], spaceId: string) =>
   getFloor(floorId)?.spaces.find((s) => s.id === spaceId);
+
+/**
+ * Which floors contain any of the given space ids — in FLOORS order, deduped.
+ * Used to steer the map straight to the floor(s) holding recommended rooms.
+ */
+export const floorsForSpaces = (ids: string[]): Floor["id"][] => {
+  if (ids.length === 0) return [];
+  const want = new Set(ids);
+  return FLOORS.filter((f) => f.spaces.some((s) => want.has(s.id))).map((f) => f.id);
+};

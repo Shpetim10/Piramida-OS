@@ -5,6 +5,32 @@ import { notFound } from "next/navigation";
 
 const LIME = "#C8F000";
 
+// Shape of the organizer's booking captured at submit (lib/services/event-requests
+// submitOrganizerEventRequest → EventRequest.clarifications JSON).
+type ClarSolutionPick = { name?: string; role?: string; capacity?: number; price?: number; kind?: string };
+type ClarSolution = { tier?: string; label?: string; capacity?: number; estimatedCost?: number; picks?: ClarSolutionPick[] };
+type ClarDay = { date?: string; type?: string; start?: string; end?: string };
+type Clarifications = {
+  schedule?: { startDate?: string; endDate?: string; days?: ClarDay[] };
+  configuration?: {
+    attendees?: number;
+    assets?: string[];
+    services?: string[];
+    access?: { externalGuests?: boolean; visibility?: string };
+    estimatedTotal?: number;
+    solution?: ClarSolution;
+  };
+};
+
+function prettyDate(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+}
+
+const ROLE_TINT: Record<string, string> = { keynote: "#C8F000", breakout: "#5fc24a", support: "#7D8799" };
+
 export default async function Page({ params }: { params: Promise<{ requestId: string }> }) {
   const { requestId } = await params;
 
@@ -20,6 +46,12 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
   const extracted = request.extractedJson as Record<string, unknown> | null;
   const missingFields = (request.missingFields as string[] | null) ?? [];
   const confidence = request.confidence != null ? Math.round(request.confidence * 100) : null;
+
+  // The organizer's actual booking (name + chosen plan + schedule + quote).
+  const clar = (request.clarifications as Clarifications | null) ?? null;
+  const config = clar?.configuration;
+  const solution = config?.solution;
+  const days = (clar?.schedule?.days ?? []).filter((d) => d.date);
 
   const extractedFields = extracted
     ? [
@@ -151,6 +183,86 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
           </div>
         </div>
       </div>
+
+      {/* Organizer's submitted plan — name, chosen rooms, schedule + quote. */}
+      {(request.title || solution || days.length > 0 || config) && (
+        <div style={{ marginTop: 18, border: "1px solid rgba(200,240,0,.22)", borderRadius: 18, background: "radial-gradient(560px 320px at 15% 0%,rgba(200,240,0,.06),#151821)", overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,.07)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <div style={{ font: "700 14px Inter, sans-serif", color: "#fff" }}>{request.title || "Untitled event"}</div>
+              <div style={{ font: "500 10px 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 3, letterSpacing: ".08em" }}>
+                ORGANIZER&apos;S PLAN{solution?.label ? ` · ${solution.label.toUpperCase()}` : ""}
+              </div>
+            </div>
+            {config?.estimatedTotal != null && (
+              <div style={{ textAlign: "right" }}>
+                <div style={{ font: "800 20px/1 Inter, sans-serif", color: LIME }}>€{config.estimatedTotal.toLocaleString("en-US")}</div>
+                <div style={{ font: "600 8px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginTop: 3 }}>EST. TOTAL · INCL VAT</div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ padding: 20, display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 20 }}>
+            {/* Rooms */}
+            <div>
+              <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 10 }}>REQUESTED ROOMS</div>
+              {solution?.picks && solution.picks.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {solution.picks.map((p, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <span style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(255,255,255,.05)", border: `1px solid ${ROLE_TINT[p.role ?? "support"] ?? "#7D8799"}55`, font: "600 9px 'JetBrains Mono', monospace", color: ROLE_TINT[p.role ?? "support"] ?? "#7D8799", textTransform: "uppercase", flex: "none" }}>
+                        {p.role ?? "room"}
+                      </span>
+                      <span style={{ font: "600 13px Inter, sans-serif", color: "#fff" }}>{p.name}</span>
+                      {p.capacity ? <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799" }}>~{p.capacity}</span> : null}
+                      {p.price != null ? <span style={{ marginLeft: "auto", font: "600 12px 'JetBrains Mono', monospace", color: "#AEB5C2" }}>€{p.price}/day</span> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ font: "400 13px Inter, sans-serif", color: "#7D8799" }}>No plan chosen.</div>
+              )}
+            </div>
+
+            {/* Schedule + logistics */}
+            <div>
+              <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 10 }}>SCHEDULE</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                {days.length > 0 ? (
+                  days.map((d, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, font: "500 12.5px Inter, sans-serif", color: "#E6E9EF" }}>
+                      <span>{prettyDate(d.date)}</span>
+                      <span style={{ font: "600 12px 'JetBrains Mono', monospace", color: "#AEB5C2" }}>
+                        {d.start ?? "—"}–{d.end ?? "—"} · {d.type === "half" ? "½ day" : "full"}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ font: "400 13px Inter, sans-serif", color: "#7D8799" }}>No dates provided.</div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                {config?.attendees != null && (
+                  <span style={{ padding: "5px 9px", borderRadius: 7, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", font: "600 11px Inter, sans-serif", color: "#E6E9EF" }}>{config.attendees} attendees</span>
+                )}
+                {(config?.services ?? []).map((s) => (
+                  <span key={s} style={{ padding: "5px 9px", borderRadius: 7, background: "rgba(200,240,0,.07)", border: "1px solid rgba(200,240,0,.18)", font: "600 11px Inter, sans-serif", color: "#E6E9EF" }}>{s}</span>
+                ))}
+                {config?.access?.visibility && (
+                  <span style={{ padding: "5px 9px", borderRadius: 7, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", font: "600 11px Inter, sans-serif", color: "#AEB5C2" }}>{config.access.visibility}</span>
+                )}
+              </div>
+
+              {(config?.assets ?? []).length > 0 && (
+                <div style={{ marginTop: 12, font: "400 12px/1.6 Inter, sans-serif", color: "#AEB5C2" }}>
+                  <span style={{ color: "#7D8799" }}>Assets: </span>{(config?.assets ?? []).join(" · ")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenContainer>
   );
 }

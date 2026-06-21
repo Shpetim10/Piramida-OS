@@ -416,7 +416,24 @@ function HeroBlocks({ halfX }: { halfX: number }) {
   );
 }
 
-export function PyramidModel({ interactive = true, surroundings = true, heroBlocks = false }: { interactive?: boolean; surroundings?: boolean; heroBlocks?: boolean }) {
+export function PyramidModel({
+  interactive = true,
+  surroundings = true,
+  heroBlocks = false,
+  ground = true,
+  spin = true,
+  yawDeg = 0,
+}: {
+  interactive?: boolean;
+  surroundings?: boolean;
+  heroBlocks?: boolean;
+  /** draw the large ground disc under the pyramid. Off → transparent "sticker". */
+  ground?: boolean;
+  /** slow idle drift while exterior. Off → locked still. */
+  spin?: boolean;
+  /** extra yaw (degrees) added to the base framing — e.g. to centre the entrance. */
+  yawDeg?: number;
+}) {
   const group = useRef<Group>(null);
   const view = usePyramid((s) => s.view);
   const selectFloor = usePyramid((s) => s.selectFloor);
@@ -424,7 +441,7 @@ export function PyramidModel({ interactive = true, surroundings = true, heroBloc
 
   useFrame((_, dt) => {
     // Slow, premium drift.
-    if (group.current && view === "exterior") group.current.rotation.y += dt * 0.05;
+    if (spin && group.current && view === "exterior") group.current.rotation.y += dt * 0.05;
   });
 
   // Stack the floor tags up one side of the real building for navigation.
@@ -432,9 +449,10 @@ export function PyramidModel({ interactive = true, surroundings = true, heroBloc
   const yFor = (i: number) => 0.4 + (i / Math.max(1, tagged.length - 1)) * (height - 0.8);
 
   return (
-    // Start rotated 180° − 25° so the main entrance (grand staircase) faces the
-    // camera on load instead of the back. The idle spin accumulates from here.
-    <group ref={group} rotation={[0, Math.PI - (60 * Math.PI) / 180, 0]}>
+    // Start rotated 180° − 60° so the main entrance (grand staircase) faces the
+    // camera on load instead of the back; yawDeg nudges it from there. The idle
+    // spin (when enabled) accumulates from this base.
+    <group ref={group} rotation={[0, Math.PI - (60 * Math.PI) / 180 + (yawDeg * Math.PI) / 180, 0]}>
       {/* surrounding OSM neighbourhood — only when not in the bare hero */}
       {surroundings && (
         <Suspense fallback={null}>
@@ -469,11 +487,14 @@ export function PyramidModel({ interactive = true, surroundings = true, heroBloc
         ))}
 
       {/* soft ground — large so it fades into the fog with no hard edge. In the
-          bare hero it's near-black so the pyramid sits in pure darkness. */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
-        <circleGeometry args={[200, 80]} />
-        <meshStandardMaterial color={surroundings ? "#2a2e36" : "#0d0d12"} roughness={1} />
-      </mesh>
+          bare hero it's near-black so the pyramid sits in pure darkness. Skipped
+          entirely for the transparent "sticker" render. */}
+      {ground && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
+          <circleGeometry args={[200, 80]} />
+          <meshStandardMaterial color={surroundings ? "#2a2e36" : "#0d0d12"} roughness={1} />
+        </mesh>
+      )}
     </group>
   );
 }

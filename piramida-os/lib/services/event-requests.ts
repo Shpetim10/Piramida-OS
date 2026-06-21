@@ -133,6 +133,8 @@ const dayTypeEnum = z.enum(["half", "full"]);
 const scheduleDayInput = z.object({
   date: trimmed(40).optional(),
   type: dayTypeEnum.optional(),
+  start: trimmed(10).optional(),
+  end: trimmed(10).optional(),
 });
 const requestScheduleInput = z.object({
   startDate: trimmed(40).optional(),
@@ -147,11 +149,38 @@ const requestConfigurationInput = z.object({
         day: z.coerce.number().int().positive(),
         date: trimmed(40).optional(),
         type: dayTypeEnum.optional(),
+        start: trimmed(10).optional(),
+        end: trimmed(10).optional(),
       }),
     )
     .max(31)
     .optional(),
   assets: z.array(trimmed(120)).max(40).optional(),
+  solution: z
+    .object({
+      id: trimmed(8),
+      tier: trimmed(20).optional(),
+      label: trimmed(120),
+      rooms: z.array(trimmed(60)).max(12),
+      mapRooms: z.array(trimmed(60)).max(12).optional(),
+      capacity: z.coerce.number().int().nonnegative().optional(),
+      estimatedCost: z.coerce.number().nonnegative().optional(),
+      picks: z
+        .array(
+          z.object({
+            id: trimmed(60),
+            name: trimmed(120),
+            role: trimmed(20),
+            capacity: z.coerce.number().int().nonnegative().optional(),
+            price: z.coerce.number().nonnegative().optional(),
+            kind: trimmed(20).optional(),
+            reason: trimmed(400).optional(),
+          }),
+        )
+        .max(12)
+        .optional(),
+    })
+    .optional(),
   staff: z
     .object({
       count: z.coerce.number().int().nonnegative().max(500),
