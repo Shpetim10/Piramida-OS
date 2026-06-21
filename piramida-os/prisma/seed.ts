@@ -190,6 +190,10 @@ async function main() {
   // -- Spaces -----------------------------------------------------------------
   // features JSONB is shared by the space matcher, the 3D explore panel, and
   // the pricer — single source of truth for room capabilities.
+  // `node` is the pyramid 3D room id (lib/pyramid-data.ts) this space maps onto,
+  // stored in Space.modelNodeId so the 3D live-event pins can be placed. `floor`
+  // is the numeric pyramid floor. Operational-only spaces (corridors/storage)
+  // have no 3D block and are left unmapped.
   const spaces: Array<{
     key: string;
     name: string;
@@ -200,12 +204,15 @@ async function main() {
     publicVisible?: boolean;
     areaSqm?: number;
     features?: Record<string, unknown>;
+    node?: string;
+    floor?: number;
   }> = [
-    { key: "green", name: "Green Room", kind: "ROOM", capacity: 200, publicVisible: true, areaSqm: 400, features: { stage: true, builtInScreen: false, naturalLight: true, builtInAv: false } },
-    { key: "orange", name: "Orange Room", kind: "ROOM", capacity: 120, publicVisible: true, areaSqm: 240, features: { stage: false, builtInScreen: true, naturalLight: true, builtInAv: true } },
-    { key: "blue", name: "Blue Room", kind: "ROOM", capacity: 80, publicVisible: true, areaSqm: 160, features: { stage: false, builtInScreen: false, naturalLight: true, builtInAv: false } },
-    { key: "yellow", name: "Yellow Room", kind: "ROOM", capacity: 80, publicVisible: true, areaSqm: 160, features: { stage: false, builtInScreen: false, naturalLight: false, builtInAv: false } },
-    { key: "entrance", name: "Entrance", kind: "ENTRANCE", standing: 120, flow: 120, publicVisible: true, areaSqm: 100, features: { stage: false, builtInScreen: false, naturalLight: true, builtInAv: false } },
+    { key: "green", name: "Green Room", kind: "ROOM", capacity: 200, publicVisible: true, areaSqm: 400, features: { stage: true, builtInScreen: false, naturalLight: true, builtInAv: false }, node: "k0-4", floor: 0 },
+    { key: "orange", name: "Orange Room", kind: "ROOM", capacity: 120, publicVisible: true, areaSqm: 240, features: { stage: false, builtInScreen: true, naturalLight: true, builtInAv: true }, node: "k0-12", floor: 0 },
+    { key: "blue", name: "Blue Room", kind: "ROOM", capacity: 80, publicVisible: true, areaSqm: 160, features: { stage: false, builtInScreen: false, naturalLight: true, builtInAv: false }, node: "k1-0", floor: 1 },
+    { key: "yellow", name: "Yellow Room", kind: "ROOM", capacity: 80, publicVisible: true, areaSqm: 160, features: { stage: false, builtInScreen: false, naturalLight: false, builtInAv: false }, node: "km1-2", floor: -1 },
+    { key: "entrance", name: "Entrance", kind: "ENTRANCE", standing: 120, flow: 120, publicVisible: true, areaSqm: 100, features: { stage: false, builtInScreen: false, naturalLight: true, builtInAv: false }, node: "k0-0", floor: 0 },
+    { key: "tumo-studio", name: "TUMO Studio Hall", kind: "ROOM", capacity: 80, publicVisible: true, areaSqm: 160, features: { stage: true, builtInScreen: true, naturalLight: false, builtInAv: true }, node: "k1-1", floor: 1 },
     { key: "main-corridor", name: "Main Corridor", kind: "CORRIDOR", flow: 80, publicVisible: true, areaSqm: 80, features: {} },
     { key: "lower-corridor", name: "Lower Corridor", kind: "CORRIDOR", publicVisible: false, areaSqm: 60, features: {} },
     { key: "storage-a", name: "Storage A", kind: "STORAGE", areaSqm: 50, features: {} },
@@ -219,6 +226,8 @@ async function main() {
       update: {
         areaSqm: s.areaSqm,
         features: (s.features ?? {}) as Prisma.InputJsonValue,
+        modelNodeId: s.node ?? null,
+        floor: s.floor ?? null,
       },
       create: {
         id: sid(`space:${s.key}`),
@@ -233,6 +242,8 @@ async function main() {
         sortOrder: i,
         areaSqm: s.areaSqm,
         features: (s.features ?? {}) as Prisma.InputJsonValue,
+        modelNodeId: s.node ?? null,
+        floor: s.floor ?? null,
       },
     });
   }
@@ -621,6 +632,77 @@ async function main() {
       rank: 1,
     },
   });
+
+  // -- Live "happening now" events (drive the 3D pyramid live pins) -----------
+  // Anchored to the moment of seeding so the timeline window always contains
+  // "now" (window = source of truth). Spread across floors so switching floors
+  // in /explore reveals different live pins. Re-seeding re-anchors the windows.
+  const liveNow = new Date();
+  const HOUR = 3600_000;
+  const liveSetup = new Date(liveNow.getTime() - 2 * HOUR);
+  const liveStart = new Date(liveNow.getTime() - 1 * HOUR);
+  const liveEnd = new Date(liveNow.getTime() + 3 * HOUR);
+  const liveTeardown = new Date(liveNow.getTime() + 4 * HOUR);
+
+  const liveDemos: Array<{ key: string; code: string; title: string; guests: number; space: string }> = [
+    { key: "live-keynote", code: "EVT-2026-9001", title: "AI Founders Keynote", guests: 160, space: "green" }, // floor 0
+    { key: "live-studio", code: "EVT-2026-9002", title: "TUMO Live Studio Session", guests: 40, space: "blue" }, // floor 1
+    { key: "live-maker", code: "EVT-2026-9003", title: "Maker Hour — Live Build", guests: 24, space: "yellow" }, // floor -1
+    { key: "live-investor", code: "EVT-2026-9004", title: "Investor Demo Day", guests: 110, space: "orange" }, // floor 0
+    { key: "live-expo", code: "EVT-2026-9005", title: "Welcome & Registration Expo", guests: 180, space: "entrance" }, // floor 0
+    { key: "live-creators", code: "EVT-2026-9006", title: "Creators Live Panel", guests: 60, space: "tumo-studio" }, // floor 1
+  ];
+  for (const d of liveDemos) {
+    const liveEventId = sid(`event:${d.key}`);
+    await prisma.event.upsert({
+      where: { id: liveEventId },
+      update: {
+        status: EventStatus.LIVE,
+        setupStart: liveSetup,
+        eventStart: liveStart,
+        eventEnd: liveEnd,
+        teardownEnd: liveTeardown,
+      },
+      create: {
+        id: liveEventId,
+        orgId: ORG_ID,
+        clientId,
+        code: d.code,
+        title: d.title,
+        type: EventType.CONFERENCE,
+        status: EventStatus.LIVE,
+        approvalStatus: EventApprovalStatus.APPROVED,
+        visibility: EventVisibility.PUBLIC,
+        expectedGuests: d.guests,
+        setupStart: liveSetup,
+        eventStart: liveStart,
+        eventEnd: liveEnd,
+        teardownEnd: liveTeardown,
+        returnBufferMinutes: 30,
+      },
+    });
+    await prisma.spaceReservation.upsert({
+      where: { id: sid(`spaceres:${d.key}`) },
+      update: {
+        status: AssetReservationStatus.IN_USE,
+        setupStart: liveSetup,
+        eventStart: liveStart,
+        eventEnd: liveEnd,
+        teardownEnd: liveTeardown,
+      },
+      create: {
+        id: sid(`spaceres:${d.key}`),
+        orgId: ORG_ID,
+        eventId: liveEventId,
+        spaceId: sid(`space:${d.space}`),
+        status: AssetReservationStatus.IN_USE,
+        setupStart: liveSetup,
+        eventStart: liveStart,
+        eventEnd: liveEnd,
+        teardownEnd: liveTeardown,
+      },
+    });
+  }
 
   // -- Quote + proposal -------------------------------------------------------
   const quoteId = sid("quote:startup");

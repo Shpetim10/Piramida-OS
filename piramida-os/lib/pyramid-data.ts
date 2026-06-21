@@ -369,3 +369,25 @@ export const FLOORS: Floor[] = [
 export const getFloor = (id: Floor["id"]) => FLOORS.find((f) => f.id === id);
 export const getSpace = (floorId: Floor["id"], spaceId: string) =>
   getFloor(floorId)?.spaces.find((s) => s.id === spaceId);
+
+/** Locate a pyramid room (and its floor) by its node id, e.g. "k0-12". Used to
+ *  resolve a DB Space.modelNodeId back to a 3D block + floor number. */
+export function findRoomById(roomId: string): { room: EventSpace; floor: Floor } | undefined {
+  for (const floor of FLOORS) {
+    const room = floor.spaces.find((s) => s.id === roomId);
+    if (room) return { room, floor };
+  }
+  return undefined;
+}
+
+/** Fallback mapping for live events when a DB Space has no modelNodeId: match the
+ *  space name to a pyramid room name (case/space-insensitive). Returns the room
+ *  and the floor it lives on so callers can derive a floor number. */
+export function findRoomBySpaceName(name: string): { room: EventSpace; floor: Floor } | undefined {
+  const target = name.trim().toLowerCase();
+  for (const floor of FLOORS) {
+    const room = floor.spaces.find((s) => s.name.trim().toLowerCase() === target);
+    if (room) return { room, floor };
+  }
+  return undefined;
+}

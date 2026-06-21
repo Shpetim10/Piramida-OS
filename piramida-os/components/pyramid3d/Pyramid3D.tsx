@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, type CSSProperties } from "react";
 import { usePyramid } from "@/lib/store";
 import type { Floor } from "@/lib/pyramid-data";
+import type { LiveEventMarker } from "@/lib/services/events";
 
 // r3f touches window/DOM, so the WebGL <Canvas> must be client-only. This is the
 // SSR-safe boundary required by the port (mirrors pyramid-web/PyramidApp.tsx).
@@ -34,6 +35,8 @@ export interface Pyramid3DProps {
   mode?: Pyramid3DMode;
   /** AI-recommended room ids that glow in Pyramid OS lime on the floor view. */
   highlight?: string[];
+  /** Live events (from the DB timeline) to mark with LIVE pins on the floor view. */
+  liveEvents?: LiveEventMarker[];
   /** floor to open on mount (map always; interactive optional). */
   initialFloor?: Floor["id"];
   className?: string;
@@ -45,7 +48,7 @@ export interface Pyramid3DProps {
  * in the shared zustand store (lib/store); this wrapper just sets the initial
  * view for the mode and forwards the presentation flags to the Canvas.
  */
-export function Pyramid3D({ mode = "interactive", highlight, initialFloor, className, style }: Pyramid3DProps) {
+export function Pyramid3D({ mode = "interactive", highlight, liveEvents, initialFloor, className, style }: Pyramid3DProps) {
   const reset = usePyramid((s) => s.reset);
   const selectFloor = usePyramid((s) => s.selectFloor);
 
@@ -74,7 +77,7 @@ export function Pyramid3D({ mode = "interactive", highlight, initialFloor, class
       }}
       className={className}
     >
-      <Scene interactive={mode === "interactive"} autoRotate={mode === "map"} highlight={highlight} bare={mode === "ambient"} />
+      <Scene interactive={mode === "interactive"} autoRotate={mode === "map"} highlight={highlight} liveEvents={liveEvents} bare={mode === "ambient"} />
     </div>
   );
 }

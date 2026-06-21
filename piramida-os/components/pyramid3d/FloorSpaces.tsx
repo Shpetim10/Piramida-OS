@@ -6,6 +6,7 @@ import { RoundedBox, Html, Instances, Instance } from "@react-three/drei";
 import { Color, Group } from "three";
 import { getFloor, type EventSpace } from "@/lib/pyramid-data";
 import { usePyramid } from "@/lib/store";
+import type { LiveEventMarker } from "@/lib/services/events";
 
 const ACCENT = "#d6ff00"; // Pyramid OS lime
 const TRIM = "#eef1f5"; // light window/door trim (cabin style)
@@ -151,6 +152,115 @@ function SpacePin({
   );
 }
 
+/**
+ * A distinct pulsing "LIVE" marker hovering above a block that currently has a
+ * live event (from the DB event timeline, not the static pyramid data). Hovering
+ * it reveals a details card *below* the block: title, time window, status and
+ * expected guests. Self-contained inline styling (no tooltip lib) so it sits
+ * cleanly on top of the existing teardrop SpacePin.
+ */
+function LiveMarker({ ev, y }: { ev: LiveEventMarker; y: number }) {
+  const [open, setOpen] = useState(false);
+  const fmt = (d: Date) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  return (
+    // zIndexRange held at a constant above drei's default ceiling (16777271) so
+    // the LIVE pin + popup always sit on top of every other Html overlay (the
+    // tenant label pins) instead of being occluded by them.
+    <Html position={[0, y, 0]} center distanceFactor={13} zIndexRange={[100000000, 100000000]}>
+      <div
+        style={{ position: "relative", display: "inline-flex", pointerEvents: "auto" }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        onPointerOut={() => setOpen(false)}
+      >
+        {/* sleek dark-glass LIVE chip with a soft red halo dot (matches the HUD) */}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "3px 9px 3px 7px",
+            borderRadius: 999,
+            background: "rgba(15,15,21,.78)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            color: "#ff6b7a",
+            font: "700 9px/1 'JetBrains Mono', monospace",
+            letterSpacing: ".18em",
+            whiteSpace: "nowrap",
+            border: "1px solid rgba(255,107,122,.5)",
+            boxShadow: "0 3px 12px rgba(0,0,0,.4)",
+            cursor: "default",
+          }}
+        >
+          <span style={{ position: "relative", width: 6, height: 6, display: "inline-block" }}>
+            <span className="live-pin-pulse" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#ff4d62" }} />
+            <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#ff4d62", boxShadow: "0 0 5px rgba(255,77,98,.9)" }} />
+          </span>
+          LIVE
+        </div>
+
+        {/* details popup — opens UPWARD so it never overlaps the block's tenant
+            label/pin sitting just below this marker */}
+        {open && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "calc(100% + 9px)",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 210,
+              padding: "12px 13px",
+              borderRadius: 12,
+              background: "rgba(13,13,18,.97)",
+              border: "1px solid rgba(255,107,122,.4)",
+              boxShadow: "0 14px 34px rgba(0,0,0,.55)",
+              color: "#fff",
+              textAlign: "left",
+              pointerEvents: "none",
+            }}
+          >
+            <div style={{ font: "700 13px/1.3 Inter, sans-serif", marginBottom: 9, letterSpacing: "-.01em" }}>{ev.title}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, font: "500 11px 'JetBrains Mono', monospace", color: "#AEB5C2" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <span>TIME</span>
+                <span style={{ color: "#fff" }}>{fmt(ev.eventStart)}–{fmt(ev.eventEnd)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <span>GUESTS</span>
+                <span style={{ color: "#fff" }}>{ev.expectedGuests ?? "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <span>STATUS</span>
+                <span style={{ color: "#ff6b7a", fontWeight: 700 }}>{ev.status}</span>
+              </div>
+            </div>
+            {/* little pointer tail toward the marker */}
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: "50%",
+                transform: "translateX(-50%) rotate(45deg)",
+                width: 9,
+                height: 9,
+                marginTop: -5,
+                background: "rgba(13,13,18,.97)",
+                borderRight: "1px solid rgba(255,107,122,.4)",
+                borderBottom: "1px solid rgba(255,107,122,.4)",
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </Html>
+  );
+}
+
 /** App-style radial layer of colour-coded tenant cubes for the selected floor.
  *  `interactive` gates room clicks (off for the ambient / guest-map presentations);
  *  `highlight` is the set of AI-recommended room ids that glow in Pyramid OS lime. */
@@ -158,10 +268,13 @@ export function FloorSpaces({
   floorId,
   interactive = true,
   highlight,
+  liveEvents,
 }: {
   floorId: number | "park";
   interactive?: boolean;
   highlight?: Set<string>;
+  /** live events keyed by pyramid room id — rooms in this map get a LIVE pin */
+  liveEvents?: Map<string, LiveEventMarker>;
 }) {
   const floor = getFloor(floorId);
   const selectSpaceRaw = usePyramid((s) => s.selectSpace);
@@ -199,10 +312,11 @@ export function FloorSpaces({
         const lifted =
           floor.spaces.length > DENSE_FLOOR && i % 2 === 1 && !space.stairs && !space.glassFront;
         const recommended = !!highlight?.has(space.id);
+        const live = liveEvents?.get(space.id);
         return space.stairs ? (
-          <StairsSpace key={space.id} space={space} index={i} interactive={interactive} recommended={recommended} onSelect={() => selectSpace(space.id)} />
+          <StairsSpace key={space.id} space={space} index={i} interactive={interactive} recommended={recommended} live={live} onSelect={() => selectSpace(space.id)} />
         ) : (
-          <SpaceCube key={space.id} space={space} index={i} lift={lifted ? STORY : 0} interactive={interactive} recommended={recommended} onSelect={() => selectSpace(space.id)} />
+          <SpaceCube key={space.id} space={space} index={i} lift={lifted ? STORY : 0} interactive={interactive} recommended={recommended} live={live} onSelect={() => selectSpace(space.id)} />
         );
       })}
     </group>
@@ -404,7 +518,7 @@ function CubeFacade({ w, h, d, color, door = true }: { w: number; h: number; d: 
 
 /** Floor-0 staircase space — a clean grey climbable flight; click to open the
  *  stair-talk (50 people, screen, no chairs). Modelled after the reference. */
-function StairsSpace({ space, onSelect, index = 0, interactive = true }: { space: EventSpace; onSelect: () => void; index?: number; interactive?: boolean; recommended?: boolean }) {
+function StairsSpace({ space, onSelect, index = 0, interactive = true, live }: { space: EventSpace; onSelect: () => void; index?: number; interactive?: boolean; recommended?: boolean; live?: LiveEventMarker }) {
   const [hover, setHover] = useState(false);
   const rad = (space.angle * Math.PI) / 180;
   const x = Math.cos(rad) * space.radius;
@@ -446,6 +560,7 @@ function StairsSpace({ space, onSelect, index = 0, interactive = true }: { space
       </group>
 
       <SpacePin space={space} bookable={!!space.eventable} y={rise * steps + 0.6} onSelect={onSelect} />
+      {live && <LiveMarker ev={live} y={rise * steps + 1.62} />}
       </Rise>
     </group>
   );
@@ -453,7 +568,7 @@ function StairsSpace({ space, onSelect, index = 0, interactive = true }: { space
 
 /** A realistic solid tenant block. Sits flat on the floor, or — when `lift` is
  *  set — floats on an upper tier carried by slim columns (two-story floors). */
-function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, recommended = false }: { space: EventSpace; onSelect: () => void; lift?: number; index?: number; interactive?: boolean; recommended?: boolean }) {
+function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, recommended = false, live }: { space: EventSpace; onSelect: () => void; lift?: number; index?: number; interactive?: boolean; recommended?: boolean; live?: LiveEventMarker }) {
   const [hover, setHover] = useState(false);
   const rad = (space.angle * Math.PI) / 180;
   const x = Math.cos(rad) * space.radius;
@@ -553,6 +668,7 @@ function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, r
       </group>
 
       <SpacePin space={space} bookable={bookable} y={space.size[1] / 2 + 0.6} onSelect={onSelect} />
+      {live && <LiveMarker ev={live} y={space.size[1] / 2 + 1.62} />}
       </Rise>
     </group>
   );

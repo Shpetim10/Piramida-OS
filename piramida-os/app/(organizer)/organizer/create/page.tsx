@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PyramidTwin } from "@/lib/PyramidTwin";
+import type { LiveEventMarker } from "@/lib/services/events";
 import { useViewport } from "@/lib/useViewport";
 import { useTasksStore, type NewTaskCard } from "@/lib/manager/tasks-store";
 import {
@@ -138,6 +139,18 @@ export default function CreateEventPage() {
   // Run-of-show tasks generated for the manager board on plan confirmation.
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksAdded, setTasksAdded] = useState<number | null>(null);
+
+  // Live events (DB timeline) to mark on the 3D twin so the organizer sees what
+  // is happening in the building right now. Read-only; failures degrade to none.
+  const [liveEvents, setLiveEvents] = useState<LiveEventMarker[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/public/live-events")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: LiveEventMarker[]) => { if (active) setLiveEvents(Array.isArray(data) ? data : []); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   function clearGap(field: GapField) {
     setGaps((prev) => {
@@ -466,7 +479,7 @@ export default function CreateEventPage() {
               Describe your event in plain words. The Pyramid will find your rooms.
             </p>
             <div style={{ maxWidth: 540, margin: "18px auto 0", animation: "floatY 8s ease-in-out infinite" }}>
-              <PyramidTwin selected={rooms} labels showRoutes />
+              <PyramidTwin selected={rooms} labels showRoutes liveEvents={liveEvents} />
             </div>
           </div>
           <div style={{ position: "relative", maxWidth: 720, margin: "0 auto" }}>
@@ -648,7 +661,7 @@ export default function CreateEventPage() {
                   RECOMMENDED SPACES
                 </div>
                 <div style={{ position: "relative", width: "100%", maxWidth: 520 }}>
-                  <PyramidTwin selected={rooms} labels showRoutes />
+                  <PyramidTwin selected={rooms} labels showRoutes liveEvents={liveEvents} />
                 </div>
               </div>
               <div style={{ marginTop: 16, border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, background: "#151821", padding: 18 }}>

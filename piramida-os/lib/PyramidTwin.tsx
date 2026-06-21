@@ -2,6 +2,7 @@
 
 import { Pyramid3D } from "@/components/pyramid3d/Pyramid3D";
 import { floorOfRoom } from "@/lib/data";
+import type { LiveEventMarker } from "@/lib/services/events";
 
 // PyramidTwin now renders the real three.js pyramid (ported from pyramid-web)
 // instead of the old demo SVG triangle. The public prop contract is preserved so
@@ -19,9 +20,11 @@ export interface PyramidTwinProps {
   labels?: boolean;
   hero?: boolean;
   onRoom?: (id: string) => void;
+  /** live events (from the DB timeline) to mark with LIVE pins on the floor view */
+  liveEvents?: LiveEventMarker[];
 }
 
-export function PyramidTwin({ selected = [], hero = false }: PyramidTwinProps) {
+export function PyramidTwin({ selected = [], hero = false, liveEvents }: PyramidTwinProps) {
   // Open the floor of the first highlighted room so its lime-glowing rooms are
   // in view (recommendations stay on one floor — see recRooms in lib/data).
   const initialFloor = selected.length ? floorOfRoom(selected[0]) ?? -1 : -1;
@@ -41,6 +44,7 @@ export function PyramidTwin({ selected = [], hero = false }: PyramidTwinProps) {
       <Pyramid3D
         mode={hero ? "ambient" : "map"}
         highlight={hero ? undefined : selected}
+        liveEvents={hero ? undefined : liveEvents}
         initialFloor={initialFloor}
       />
     </div>

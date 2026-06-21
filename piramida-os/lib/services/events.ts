@@ -10,6 +10,7 @@ import {
 } from "../validation/schemas";
 import { uuid } from "../validation/common";
 import { assertTransition, EVENT_TRANSITIONS } from "./state-machines";
+import { findRoomById, findRoomBySpaceName } from "../pyramid-data";
 
 // Events, requirements, and plan version snapshots/diffs. The plan snapshot is
 // the source for Change Impact (event_plan_diffs): each call captures the full
@@ -23,6 +24,109 @@ export async function listEvents(opts?: { status?: EventStatus }) {
     include: { client: { select: { name: true } }, publication: { select: { slug: true, status: true } } },
     orderBy: { createdAt: "desc" },
   });
+}
+
+// -- Live events (3D pyramid live pins) -------------------------------------
+
+/** One live event, resolved onto a pyramid 3D room block. There may be several
+ *  per event when an event reserves multiple spaces. */
+export interface LiveEventMarker {
+  eventId: string;
+  title: string;
+  status: EventStatus;
+  eventStart: Date;
+  eventEnd: Date;
+  expectedGuests: number | null;
+  spaceId: string;
+  spaceName: string;
+  /** numeric pyramid floor (e.g. 0, -1, 1) or null when it can't be resolved */
+  floorNumber: number | null;
+  /** the pyramid 3D room id this event lights up, e.g. "k0-12" */
+  roomId: string;
+}
+
+/**
+ * Live events to render as pins on the 3D pyramid. An event counts as live when
+ * its status is LIVE *and* the timeline window contains `now` — the window is the
+ * source of truth, so a stale LIVE flag outside its window is not shown.
+ *
+ * Each live event is mapped onto a pyramid room block via Space.modelNodeId
+ * (canonical), falling back to matching the space name to a pyramid room name.
+ * Events whose space can't be mapped are logged and skipped (never throw), so a
+ * missing mapping degrades to "no pin" rather than crashing the view.
+ *
+ * Read-only and org-scoped (no staff permission) so it can feed the public
+ * /explore pyramid. Returns only coarse, guest-safe fields.
+ */
+export async function getLiveEvents(now: Date = new Date()): Promise<LiveEventMarker[]> {
+  const orgId = await getOrgId();
+  const events = await prisma.event.findMany({
+    where: {
+      orgId,
+      deletedAt: null,
+      status: EventStatus.LIVE,
+      eventStart: { lte: now },
+      eventEnd: { gte: now },
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      eventStart: true,
+      eventEnd: true,
+      expectedGuests: true,
+      spaceReservations: {
+        where: { deletedAt: null },
+        select: {
+          spaceId: true,
+          space: { select: { name: true, floor: true, modelNodeId: true } },
+        },
+      },
+    },
+  });
+
+  const markers: LiveEventMarker[] = [];
+  for (const ev of events) {
+    if (!ev.eventStart || !ev.eventEnd) continue;
+    for (const res of ev.spaceReservations) {
+      const spaceName = res.space.name;
+      // 1) modelNodeId is the canonical pyramid room id.
+      let roomId = res.space.modelNodeId ?? null;
+      let floorNumber = res.space.floor ?? null;
+      if (roomId) {
+        if (floorNumber == null) {
+          const found = findRoomById(roomId);
+          if (found && typeof found.floor.id === "number") floorNumber = found.floor.id;
+        }
+      } else {
+        // 2) fall back to matching the space name to a pyramid room name.
+        const match = findRoomBySpaceName(spaceName);
+        if (match) {
+          roomId = match.room.id;
+          if (floorNumber == null && typeof match.floor.id === "number") floorNumber = match.floor.id;
+        }
+      }
+      if (!roomId) {
+        console.warn(
+          `[getLiveEvents] No pyramid room for space "${spaceName}" (event "${ev.title}"); skipping live pin.`,
+        );
+        continue;
+      }
+      markers.push({
+        eventId: ev.id,
+        title: ev.title,
+        status: ev.status,
+        eventStart: ev.eventStart,
+        eventEnd: ev.eventEnd,
+        expectedGuests: ev.expectedGuests ?? null,
+        spaceId: res.spaceId,
+        spaceName,
+        floorNumber,
+        roomId,
+      });
+    }
+  }
+  return markers;
 }
 
 export async function getEvent(id: string) {

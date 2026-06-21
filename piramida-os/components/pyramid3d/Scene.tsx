@@ -7,6 +7,7 @@ import { Group, Vector3 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { usePyramid, useResolvedEvent } from "@/lib/store";
 import { getSpace } from "@/lib/pyramid-data";
+import type { LiveEventMarker } from "@/lib/services/events";
 import { PyramidModel } from "./PyramidModel";
 import { ExplodedPyramid } from "./ExplodedPyramid";
 import { FloorSpaces } from "./FloorSpaces";
@@ -106,7 +107,7 @@ function ViewIntro({ children, rise = 0.5 }: { children: React.ReactNode; rise?:
   );
 }
 
-function Content({ interactive, highlight, bare }: { interactive: boolean; highlight?: Set<string>; bare?: boolean }) {
+function Content({ interactive, highlight, liveEvents, bare }: { interactive: boolean; highlight?: Set<string>; liveEvents?: Map<string, LiveEventMarker>; bare?: boolean }) {
   const view = usePyramid((s) => s.view);
   const floorId = usePyramid((s) => s.floorId);
   const spaceId = usePyramid((s) => s.spaceId);
@@ -138,7 +139,7 @@ function Content({ interactive, highlight, bare }: { interactive: boolean; highl
   if (view === "floor" && floorId != null)
     return (
       <group key={`floor:${floorId}`}>
-        <FloorSpaces floorId={floorId} interactive={interactive} highlight={highlight} />
+        <FloorSpaces floorId={floorId} interactive={interactive} highlight={highlight} liveEvents={liveEvents} />
       </group>
     );
 
@@ -167,16 +168,23 @@ export interface SceneProps {
   autoRotate?: boolean;
   /** AI-recommended room ids to glow in Pyramid OS lime on the floor view. */
   highlight?: string[];
+  /** Live events (from the DB timeline) to mark with LIVE pins on the floor view. */
+  liveEvents?: LiveEventMarker[];
   /** Hero mode: lone pyramid (no city/trees), pure-black backdrop, lime-tinted
    *  lighting and a closer, larger framing. */
   bare?: boolean;
 }
 
-export default function Scene({ interactive = true, autoRotate = false, highlight, bare = false }: SceneProps) {
+export default function Scene({ interactive = true, autoRotate = false, highlight, liveEvents, bare = false }: SceneProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const back = usePyramid((s) => s.back);
   const view = usePyramid((s) => s.view);
   const highlightSet = useMemo(() => (highlight ? new Set(highlight) : undefined), [highlight]);
+  // Key live events by pyramid room id so FloorSpaces can look each block up.
+  const liveMap = useMemo(
+    () => (liveEvents && liveEvents.length ? new Map(liveEvents.map((e) => [e.roomId, e])) : undefined),
+    [liveEvents],
+  );
 
   // Only the floor park is daytime. The exterior is a soft dark backdrop; the
   // bare hero is pure black so the lit pyramid emerges from darkness.
@@ -223,7 +231,7 @@ export default function Scene({ interactive = true, autoRotate = false, highligh
       {heroExterior && <directionalLight position={[-13, 6, -9]} intensity={0.42} color="#c8f000" />}
 
       <Suspense fallback={null}>
-        <Content interactive={interactive} highlight={highlightSet} bare={bare} />
+        <Content interactive={interactive} highlight={highlightSet} liveEvents={liveMap} bare={bare} />
       </Suspense>
 
       <ContactShadows

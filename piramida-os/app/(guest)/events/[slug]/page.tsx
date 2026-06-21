@@ -3,32 +3,9 @@
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useViewport } from "@/lib/useViewport";
-<<<<<<< Updated upstream
-import { PyramidTwin } from "@/components/manager/twin";
-=======
+import { PyramidTwin } from "@/lib/PyramidTwin";
 import { recRooms, ROOM_NAME } from "@/lib/data";
-
-type AgendaItem = {
-  title: string;
-  description: string | null;
-  startsAt: string | null;
-  endsAt: string | null;
-  space: string | null;
-};
-
-type PublishedEvent = {
-  slug: string;
-  title: string | null;
-  description: string | null;
-  start: string | null;
-  end: string | null;
-  venue: string | null;
-  registrationOpen: boolean;
-  capacity: number | null;
-  remainingCapacity: number | null;
-  agendaItems: AgendaItem[];
-};
->>>>>>> Stashed changes
+import type { LiveEventMarker } from "@/lib/services/events";
 
 const LIME = "#C8F000";
 
@@ -89,6 +66,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [registered, setRegistered] = useState<RegisteredState | null>(null);
+  const [liveEvents, setLiveEvents] = useState<LiveEventMarker[]>([]);
+
+  // Live events (DB timeline) to mark on the guest map's 3D twin.
+  useEffect(() => {
+    let active = true;
+    fetch("/api/public/live-events")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: LiveEventMarker[]) => { if (active) setLiveEvents(Array.isArray(data) ? data : []); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     fetch(`/api/public/events/${encodeURIComponent(slug)}`)
@@ -149,22 +137,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
     );
   }
 
-<<<<<<< Updated upstream
-=======
-  const filledSpots = event.capacity != null && event.remainingCapacity != null
-    ? event.capacity - event.remainingCapacity
-    : null;
-  const fillPct = event.capacity && filledSpots != null
-    ? Math.round((filledSpots / event.capacity) * 100)
-    : null;
-
-  const startDate = event.start ? new Date(event.start) : null;
-  const endDate = event.end ? new Date(event.end) : null;
-
   // Guest map highlights the real 3D rooms recommended for this event's size.
   const guestRooms = recRooms(event.capacity ?? 180);
 
->>>>>>> Stashed changes
   return (
     <div>
       {/* Hero */}
@@ -403,7 +378,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
               YOUR GUEST MAP
             </div>
             <div style={{ borderRadius: 12, background: "radial-gradient(400px 240px at 50% 30%,rgba(200,240,0,.04),#101319)", padding: 12, marginBottom: 12 }}>
-              <PyramidTwin selected={guestRooms} labels showRoutes />
+              <PyramidTwin selected={guestRooms} labels showRoutes liveEvents={liveEvents} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, font: "500 12px Inter, sans-serif", color: "#AEB5C2" }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: LIME }} />
