@@ -22,6 +22,7 @@ import {
 } from "../validation/schemas";
 import { uuid } from "../validation/common";
 import { assertTransition, EVENT_TRANSITIONS } from "./state-machines";
+import { sendTicketEmail } from "./email";
 
 // Public publication + guest lifecycle.
 //
@@ -236,7 +237,7 @@ export async function registerGuest(input: unknown) {
   if (!pub) throw new AuthError("Event not found", 404);
   if (!pub.registrationOpen) throw new AuthError("Registration is closed", 403);
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Capacity check (confirmed + checked-in count against public capacity).
     let status: GuestRegistrationStatus = GuestRegistrationStatus.CONFIRMED;
     if (pub.capacityPublic !== null) {
@@ -283,6 +284,22 @@ export async function registerGuest(input: unknown) {
     });
     return { registration, ticket };
   });
+
+  // Fire-and-forget ticket email — never block the response.
+  if (result.ticket && data.email) {
+    void sendTicketEmail({
+      to: data.email,
+      guestName: data.fullName,
+      eventTitle: pub.publicTitle,
+      eventStart: pub.publicStart,
+      eventEnd: pub.publicEnd,
+      venueLabel: pub.venueLabel,
+      ticketToken: result.ticket.token,
+      slug: pub.slug,
+    });
+  }
+
+  return result;
 }
 
 /** Issue (or re-issue) a ticket for a confirmed registration. */
