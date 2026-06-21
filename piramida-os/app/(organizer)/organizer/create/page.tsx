@@ -436,7 +436,7 @@ export default function CreateEventPage() {
           schedule: { startDate, endDate, days: days.map((d) => ({ date: d.date, type: d.type })) },
           assets,
           services,
-          rooms,
+          rooms: selectedSolution?.rooms ?? [],
           access: { externalGuests: allowExternalGuests, isPublic },
         }),
       });
