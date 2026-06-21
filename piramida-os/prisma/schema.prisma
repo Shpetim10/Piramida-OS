@@ -33,14 +33,13 @@ enum ProfileType {
 }
 
 // FINANCE_MANAGER and INVENTORY_MANAGER are intentionally merged into
-// EVENT_MANAGER (decision 2026-06-20). Do not re-introduce without updating
-// the permission matrix and seeds.
+// EVENT_MANAGER (decision 2026-06-20). OPERATIONS_MANAGER and TECHNICIAN
+// were merged into EVENT_MANAGER (decision 2026-06-21). Do not re-introduce
+// without updating the permission matrix and seeds.
 enum RoleCode {
   SUPER_ADMIN
   ADMIN
   EVENT_MANAGER
-  OPERATIONS_MANAGER
-  TECHNICIAN
   EVENT_ORGANIZER
 }
 

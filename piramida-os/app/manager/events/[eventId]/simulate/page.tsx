@@ -2,6 +2,7 @@ import { getEvent } from "@/lib/services/events";
 import { scoreSpaces } from "@/lib/services/planning";
 import { getSetting } from "@/lib/services/settings";
 import { AssetReservationStatus } from "@prisma/client";
+import { PipelineStepNav } from "@/components/manager/PipelineStepNav";
 import { SimulateClient } from "./SimulateClient";
 
 interface RoomPosition {
@@ -51,13 +52,18 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
   const latestPlan = event?.planVersions[0]?.snapshot as PlanSnapshot | undefined;
 
   return (
-    <SimulateClient
+    <>
+      <PipelineStepNav eventId={eventId} />
+      <SimulateClient
       eventId={eventId}
       spaceScores={spaceScores}
       allocatedIds={latestPlan?.selectedSpaces?.map((space) => space.spaceId) ?? allocatedSpaceIds}
       guests={event?.expectedGuests ?? 0}
       roomPositions={roomPositions ?? FALLBACK_ROOMS}
       latestPlan={latestPlan ?? null}
+      eventMissing={!event}
+      scoresFailed={spaceScores.length === 0 && !!event}
     />
+    </>
   );
 }

@@ -495,7 +495,25 @@ export async function createEventFromRequest(requestId: string, reviewedFields?:
 
   const reviewed = reviewedFields ? normalizeIntake(reviewedFields) : null;
   const extraction = request.extractedJson ? eventIntakeSchema.safeParse(request.extractedJson) : null;
-  const ex = reviewed ?? (extraction?.success ? normalizeIntake(extraction.data) : deterministicExtract(request.rawText));
+  const base = reviewed ?? (extraction?.success ? normalizeIntake(extraction.data) : deterministicExtract(request.rawText));
+
+  // Suppress false missing-field warnings when the organizer form already
+  // provided structured data (attendees, schedule) via clarifications.
+  const clarifs = request.clarifications as Record<string, unknown> | null;
+  const structuredAttendees = (clarifs?.configuration as Record<string, unknown> | null)?.attendees;
+  const structuredStartDate = (clarifs?.schedule as Record<string, unknown> | null)?.startDate;
+  const resolvedMissing = base.missingFields.filter((f) => {
+    if (f === "expected guest count" && typeof structuredAttendees === "number" && structuredAttendees > 0) return false;
+    if (f === "date preference" && typeof structuredStartDate === "string" && structuredStartDate) return false;
+    return true;
+  });
+  const guests =
+    base.expectedGuests > 0
+      ? base.expectedGuests
+      : typeof structuredAttendees === "number" && structuredAttendees > 0
+        ? structuredAttendees
+        : base.expectedGuests;
+  const ex = { ...base, expectedGuests: guests, missingFields: resolvedMissing };
 
   const code = await nextEventCode(orgId);
 

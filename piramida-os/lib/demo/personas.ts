@@ -24,8 +24,6 @@ export interface DemoPersona {
 export const DEMO_PERSONAS: DemoPersona[] = [
   { key: "profile:admin", label: "Ada Admin", role: "ADMIN" },
   { key: "profile:event-mgr", label: "Erion Event", role: "EVENT_MANAGER" },
-  { key: "profile:ops-mgr", label: "Olta Ops", role: "OPERATIONS_MANAGER" },
-  { key: "profile:tech", label: "Teo Tech", role: "TECHNICIAN" },
   { key: "profile:organizer", label: "Lena Organizer", role: "EVENT_ORGANIZER" },
 ].map((p) => ({ ...p, profileId: sid(p.key) }));
 

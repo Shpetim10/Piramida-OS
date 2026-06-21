@@ -1,10 +1,11 @@
 import { detectConflicts } from "@/lib/services/conflicts";
-import { detectAssetShortages } from "@/lib/services/reservations";
+import { detectAssetShortages, SERIALIZED_REQ_TO_CATEGORY, BULK_REQ_TO_CATEGORY } from "@/lib/services/reservations";
 import { getEvent } from "@/lib/services/events";
 import { explainConflict } from "@/lib/ai/explainer";
 import { getLaunchReadiness } from "@/lib/services/launch-readiness";
 import { getSetting } from "@/lib/services/settings";
 import { buildTwinOverlays, type TwinRoomPosition } from "@/lib/manager/twin-overlays";
+import { PipelineStepNav } from "@/components/manager/PipelineStepNav";
 import { ProtectClient } from "./ProtectClient";
 
 const SEV_COLOR: Record<string, string> = {
@@ -123,15 +124,18 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
   });
 
   return (
-    <ProtectClient
-      inventory={inventoryRows}
-      conflicts={conflictRows}
-      readinessGates={readiness?.gates ?? []}
-      twinRooms={rooms}
-      twinSelectedSlugs={twinOverlays.selectedSlugs}
-      twinPins={twinOverlays.pins}
-      twinFlows={twinOverlays.flows}
-    />
+    <>
+      <PipelineStepNav eventId={eventId} />
+      <ProtectClient
+        inventory={inventoryRows}
+        conflicts={conflictRows}
+        readinessGates={readiness?.gates ?? []}
+        twinRooms={rooms}
+        twinSelectedSlugs={twinOverlays.selectedSlugs}
+        twinPins={twinOverlays.pins}
+        twinFlows={twinOverlays.flows}
+      />
+    </>
   );
 }
 
@@ -162,10 +166,11 @@ async function buildInventoryRows(
     const required = typeof req.valueJson === "number" ? req.valueJson : 0;
     if (required <= 0) continue;
 
+    const exactCatName = SERIALIZED_REQ_TO_CATEGORY[key] ?? BULK_REQ_TO_CATEGORY[key] ?? label;
     const reserved = activeReservationItems
-      .filter((i) => i.quantity > 0 && i.category?.name === label)
+      .filter((i) => i.quantity > 0 && i.category?.name === exactCatName)
       .reduce((sum, item) => sum + item.quantity, 0);
-    const shortage = shortages.find((s) => s.category.toLowerCase().includes(label.split(" ")[0].toLowerCase()));
+    const shortage = shortages.find((s) => s.category === exactCatName);
     const avail = shortage ? shortage.available : required;
     const short = shortage ? shortage.shortBy > 0 : false;
 

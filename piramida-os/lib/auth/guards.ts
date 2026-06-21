@@ -2,8 +2,8 @@
 // mutation of operational truth and every read of internal data must pass
 // through one of these. They throw AuthError (mapped to 401/403/404 by routes).
 //
-// Role model is the LOCKED 6-role set: SUPER_ADMIN, ADMIN, EVENT_MANAGER
-// (absorbs inventory + finance), OPERATIONS_MANAGER, TECHNICIAN, EVENT_ORGANIZER.
+// Role model is the LOCKED 4-role set: SUPER_ADMIN, ADMIN, EVENT_MANAGER
+// (absorbs all staff capabilities), EVENT_ORGANIZER.
 import {
   ProfileStatus,
   ProfileType,

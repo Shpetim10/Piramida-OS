@@ -1,4 +1,5 @@
 import { ScreenContainer } from "@/components/manager/ScreenContainer";
+import { PipelineStepNav } from "@/components/manager/PipelineStepNav";
 import { DnaRadar } from "@/components/manager/twin";
 import { ManagerStatusPanel } from "@/components/manager/ManagerStatusPanel";
 import { getEvent } from "@/lib/services/events";
@@ -51,6 +52,8 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
   const dnaDims = dnaScores.map((d) => ({ k: d.label, s: d.shortLabel, v: d.value }));
 
   return (
+    <>
+      <PipelineStepNav eventId={eventId} />
     <ScreenContainer>
       {!event && (
         <div style={{ color: "#EF4444", padding: 24, border: "1px solid rgba(239,68,68,.3)", borderRadius: 14, background: "rgba(239,68,68,.05)" }}>
@@ -147,5 +150,6 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
         </div>
       )}
     </ScreenContainer>
+    </>
   );
 }
