@@ -1,4 +1,5 @@
 import { ScreenContainer } from "@/components/manager/ScreenContainer";
+import { PipelineStepNav } from "@/components/manager/PipelineStepNav";
 import { DecisionGraph } from "@/components/manager/twin";
 import { getEvent } from "@/lib/services/events";
 import { listAuditLogsByEvent } from "@/lib/audit/log";
@@ -43,6 +44,8 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
   const fromGuests = event?.expectedGuests ?? 180;
 
   return (
+    <>
+      <PipelineStepNav eventId={eventId} />
     <ScreenContainer>
       {/* Decision Graph */}
       <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, background: "radial-gradient(700px 360px at 30% 0%,rgba(42,111,219,.07),#101319)", padding: 22, marginBottom: 18 }}>
@@ -89,6 +92,7 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
         </div>
       </div>
     </ScreenContainer>
+    </>
   );
 }
 

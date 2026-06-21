@@ -37,6 +37,8 @@ interface Props {
   guests: number;
   roomPositions: TwinRoomDef[];
   latestPlan: LatestPlan | null;
+  eventMissing?: boolean;
+  scoresFailed?: boolean;
 }
 
 type SpaceInfo = {
@@ -54,10 +56,12 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
-export function SimulateClient({ eventId, spaceScores, allocatedIds, guests, roomPositions, latestPlan }: Props) {
+export function SimulateClient({ eventId, spaceScores, allocatedIds, guests, roomPositions, latestPlan, eventMissing, scoresFailed }: Props) {
   const router = useRouter();
   const { isMobile } = useMgrViewport();
   const [isGenerating, startGenerating] = useTransition();
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planSuccess, setPlanSuccess] = useState(false);
   const [twinLayer, setTwinLayer] = useState<TwinLayer>("allocation");
   const [focusRoom, setFocusRoom] = useState<string>(roomPositions[1]?.slug ?? roomPositions[0]?.slug ?? "");
   const [roomInfo, setRoomInfo] = useState<SpaceInfo | null>(null);
@@ -95,9 +99,21 @@ export function SimulateClient({ eventId, spaceScores, allocatedIds, guests, roo
   }, [eventId, focusScore?.spaceId]);
 
   function generatePlan() {
+    setPlanError(null);
+    setPlanSuccess(false);
     startGenerating(async () => {
-      await fetch(`/api/staff/events/${eventId}/plan`, { method: "POST" });
-      router.refresh();
+      try {
+        const res = await fetch(`/api/staff/events/${eventId}/plan`, { method: "POST" });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setPlanError(body.error ?? `Failed (${res.status})`);
+          return;
+        }
+        setPlanSuccess(true);
+        router.refresh();
+      } catch {
+        setPlanError("Network error — could not reach the server.");
+      }
     });
   }
 
@@ -114,6 +130,16 @@ export function SimulateClient({ eventId, spaceScores, allocatedIds, guests, roo
 
   return (
     <ScreenContainer>
+      {eventMissing && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(239,68,68,.35)", background: "rgba(239,68,68,.07)", font: "500 13px Inter, sans-serif", color: "#EF4444" }}>
+          Event not found or you do not have access.
+        </div>
+      )}
+      {scoresFailed && !eventMissing && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(245,158,11,.35)", background: "rgba(245,158,11,.06)", font: "500 13px Inter, sans-serif", color: "#F59E0B" }}>
+          Space scoring failed — the event may be missing dates (setup start / end / teardown), or your account lacks the <code>events.plan</code> permission (requires EVENT_MANAGER role).
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginRight: 4 }}>TWIN LAYER</span>
@@ -130,6 +156,17 @@ export function SimulateClient({ eventId, spaceScores, allocatedIds, guests, roo
           {isGenerating ? "Generating..." : "Generate Plan"}
         </button>
       </div>
+
+      {planError && (
+        <div style={{ marginBottom: 14, padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(239,68,68,.35)", background: "rgba(239,68,68,.07)", font: "500 13px Inter, sans-serif", color: "#EF4444" }}>
+          <strong>Plan generation failed:</strong> {planError}
+        </div>
+      )}
+      {planSuccess && (
+        <div style={{ marginBottom: 14, padding: "12px 16px", borderRadius: 10, border: "1px solid rgba(200,240,0,.35)", background: "rgba(200,240,0,.07)", font: "500 13px Inter, sans-serif", color: "#C8F000" }}>
+          Plan generated successfully — page refreshing with updated data.
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: simCols, gap: 18, alignItems: "start" }}>
         <div style={{ position: "relative", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, background: "radial-gradient(780px 520px at 50% 24%,rgba(214,255,0,.07),#0B0E13)", overflow: "hidden" }}>

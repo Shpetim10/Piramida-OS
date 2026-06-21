@@ -4,8 +4,9 @@ import type { RoleCode } from "@prisma/client";
 // requireRole) derive capabilities from this matrix. UI hiding is never
 // security — every mutation of operational truth must call these helpers.
 //
-// Role decision (2026-06-20): FINANCE_MANAGER and INVENTORY_MANAGER were merged
-// into EVENT_MANAGER, which now owns inventory + finance capabilities.
+// Role decisions: FINANCE_MANAGER and INVENTORY_MANAGER merged into EVENT_MANAGER
+// (2026-06-20). OPERATIONS_MANAGER and TECHNICIAN also merged into EVENT_MANAGER
+// (2026-06-21). All staff now use a single EVENT_MANAGER role.
 
 export const PERMISSIONS = [
   "profiles.manage",
@@ -53,15 +54,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "events.publish",
     "checkin.scan",
   ],
-
-  OPERATIONS_MANAGER: [
-    ...STAFF_PLANNING,
-    "inventory.manage",
-    "inventory.scan",
-    "checkin.scan",
-  ],
-
-  TECHNICIAN: ["inventory.scan", "checkin.scan"],
 
   // External client persona — scoped to OWN records via row-level ownership
   // checks, not via this matrix.

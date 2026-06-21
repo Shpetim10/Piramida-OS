@@ -414,6 +414,26 @@ export const TASK_COLUMNS = [
   { id: "done", label: "Done", color: "#22C55E" },
 ];
 
+// Shape of a single task card. The `st` (status) id is one of TASK_COLUMNS ids
+// (todo/progress/blocked/done) — the demo board ids, NOT the Prisma TaskStatus
+// enum (TODO/IN_PROGRESS/BLOCKED/READY/DONE/CANCELLED). When wiring the real
+// backend (lib/services/tasks.ts) keep these demo ids and map at the boundary.
+export interface ManagerTask {
+  id: string;
+  t: string; // title
+  ev: string; // event
+  role: string; // one of TASK_ROLES (minus "all")
+  due: string; // human-readable due, e.g. "15 Jul"
+  st: string; // status / column id
+  who: string; // assignee initials, keyed into AVATAR_COLOR
+}
+
+// Avatar background for a set of initials, with a safe fallback for any
+// assignee not present in AVATAR_COLOR (e.g. tasks added at runtime).
+export function avatarColor(who: string): string {
+  return AVATAR_COLOR[who] ?? "#39414F";
+}
+
 // ---------- Spaces ----------
 export const SPACES = [
   { id: "green", name: "Green Room", cap: "120–180", now: "Summit · Keynote stage", when: "18 Jul", status: "Reserved", util: 84 },

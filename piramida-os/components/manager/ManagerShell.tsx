@@ -12,40 +12,39 @@ import { BrandMark } from "@/components/BrandLogo";
 const A = "#C8F000";
 
 // Map the current pathname to a screen key + the event id in scope (if any).
-function resolve(pathname: string): { screen: string; eventId: string } {
+// eventId is only set when the URL contains a real event UUID segment.
+function resolve(pathname: string): { screen: string; eventId: string | null } {
   const eventMatch = pathname.match(/^\/manager\/events\/([^/]+)\/([^/]+)/);
   if (eventMatch) return { screen: eventMatch[2], eventId: eventMatch[1] };
-  if (pathname.startsWith("/manager/events")) return { screen: "events", eventId: FOCUS_EVENT_ID };
-  if (pathname.startsWith("/manager/requests")) return { screen: "requests", eventId: FOCUS_EVENT_ID };
-  if (pathname.startsWith("/manager/tasks")) return { screen: "tasks", eventId: FOCUS_EVENT_ID };
-  if (pathname.startsWith("/manager/spaces")) return { screen: "spaces", eventId: FOCUS_EVENT_ID };
-  if (pathname.startsWith("/manager/inventory")) return { screen: "inventory", eventId: FOCUS_EVENT_ID };
-  return { screen: "dashboard", eventId: FOCUS_EVENT_ID };
+  if (pathname.startsWith("/manager/events")) return { screen: "events", eventId: null };
+  if (pathname.startsWith("/manager/requests")) return { screen: "requests", eventId: null };
+  if (pathname.startsWith("/manager/tasks")) return { screen: "tasks", eventId: null };
+  if (pathname.startsWith("/manager/spaces")) return { screen: "spaces", eventId: null };
+  if (pathname.startsWith("/manager/inventory")) return { screen: "inventory", eventId: null };
+  return { screen: "dashboard", eventId: null };
 }
 
 type NavItem = { id: string; label: string; icon?: string; href: string; badge?: string; step?: string };
 
-export function ManagerShell({ children }: { children: React.ReactNode }) {
+export function ManagerShell({
+  children,
+  currentUser,
+}: {
+  children: React.ReactNode;
+  currentUser?: { name: string; initials: string; title: string };
+}) {
   const pathname = usePathname();
   const { vw } = useViewport();
   const isMobile = vw < 980;
   const isNarrow = vw < 720;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { screen, eventId } = resolve(pathname);
-  const e = (s: string) => `/manager/events/${eventId}/${s}`;
+  const { screen } = resolve(pathname);
 
   const monitor: NavItem[] = [
     { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/manager" },
     { id: "requests", label: "Requests", icon: "requests", href: "/manager/requests", badge: "2" },
     { id: "events", label: "Events", icon: "events", href: "/manager/events" },
-  ];
-  const pipeline: NavItem[] = [
-    { id: "understand", label: "Understand", icon: "understand", href: e("understand"), step: "01" },
-    { id: "simulate", label: "Simulate", icon: "simulate", href: e("simulate"), step: "02" },
-    { id: "protect", label: "Protect", icon: "protect", href: e("protect"), step: "03", badge: "4" },
-    { id: "explain", label: "Explain", icon: "explain", href: e("explain"), step: "04" },
-    { id: "launch", label: "Launch", icon: "launch", href: e("launch"), step: "05" },
   ];
   const ops: NavItem[] = [
     { id: "tasks", label: "Tasks", icon: "tasks", href: "/manager/tasks" },
@@ -188,14 +187,6 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           <NavButton key={it.id} item={it} />
         ))}
 
-        <div style={{ ...sectionLabel, padding: "18px 11px 8px" }}>OPERATIONAL PIPELINE</div>
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", left: 21, top: 14, bottom: 14, width: 1, background: "rgba(255,255,255,.07)" }} />
-          {pipeline.map((it) => (
-            <NavButton key={it.id} item={it} />
-          ))}
-        </div>
-
         <div style={{ ...sectionLabel, padding: "18px 11px 8px" }}>OPERATIONS</div>
         {ops.map((it) => (
           <NavButton key={it.id} item={it} />
@@ -212,13 +203,13 @@ export function ManagerShell({ children }: { children: React.ReactNode }) {
           </div>
           <div style={{ paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.06)", display: "flex", alignItems: "center", gap: 11 }}>
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#C8F000,#1F8A5B)", display: "flex", alignItems: "center", justifyContent: "center", font: "700 12px Inter, sans-serif", color: "#0D0D12", flex: "none" }}>
-              EK
+              {currentUser?.initials ?? "S"}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ font: "600 12px/1.2 Inter, sans-serif", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                Erida Krasniqi
+                {currentUser?.name ?? "Staff"}
               </div>
-              <div style={{ font: "500 10px/1.3 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 2 }}>Event Manager</div>
+              <div style={{ font: "500 10px/1.3 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 2 }}>{currentUser?.title ?? "Staff"}</div>
             </div>
           </div>
 

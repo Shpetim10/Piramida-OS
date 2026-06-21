@@ -85,6 +85,19 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
     : "Unknown";
   const clientName = request.client?.name ?? "Unknown";
 
+  // Structured data submitted via the organizer form (attendees, schedule, assets, etc.)
+  const clarifs = request.clarifications as Record<string, unknown> | null;
+  const cfg = clarifs?.configuration as Record<string, unknown> | null;
+  const sched = clarifs?.schedule as Record<string, unknown> | null;
+  const answers = clarifs?.answers as { question: string; answer: string }[] | null;
+
+  function prettyDate(iso: unknown): string {
+    if (typeof iso !== "string" || !iso) return "—";
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+  }
+
   return (
     <ScreenContainer>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.05fr", gap: 18, alignItems: "start" }}>
@@ -111,6 +124,102 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
             <p style={{ font: "400 15px/1.7 Inter, sans-serif", color: "#E6E9EF", margin: 0, textWrap: "pretty" }}>
               &ldquo;{request.rawText}&rdquo;
             </p>
+
+            {clarifs && (
+              <div style={{ marginTop: 22, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em" }}>
+                  SUBMITTED DETAILS
+                </div>
+
+                {/* Attendees */}
+                {!!cfg?.attendees && (
+                  <InfoRow label="Attendees" value={String(cfg.attendees)} />
+                )}
+
+                {/* Schedule */}
+                {!!sched && !!(sched.startDate || sched.endDate) && (
+                  <InfoRow
+                    label="Schedule"
+                    value={
+                      sched.startDate === sched.endDate || !sched.endDate
+                        ? prettyDate(sched.startDate)
+                        : `${prettyDate(sched.startDate)} → ${prettyDate(sched.endDate)}`
+                    }
+                  />
+                )}
+
+                {/* Days breakdown */}
+                {Array.isArray(cfg?.days) && (cfg.days as { day: number; date: string; type: string }[]).length > 0 && (
+                  <div>
+                    <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginBottom: 7 }}>DAYS</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      {(cfg.days as { day: number; date: string; type: string }[]).map((d) => (
+                        <div key={d.day} style={{ display: "flex", gap: 10, font: "500 12px Inter, sans-serif", color: "#AEB5C2" }}>
+                          <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", width: 38, flex: "none" }}>DAY {d.day}</span>
+                          <span>{prettyDate(d.date)}</span>
+                          <span style={{ marginLeft: "auto", font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000" }}>
+                            {d.type === "half" ? "½ day" : "Full day"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Services */}
+                {Array.isArray(cfg?.services) && (cfg.services as string[]).length > 0 && (
+                  <InfoRow label="Services" value={(cfg.services as string[]).join(", ")} />
+                )}
+
+                {/* Assets */}
+                {Array.isArray(cfg?.assets) && (cfg.assets as string[]).length > 0 && (
+                  <div>
+                    <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginBottom: 7 }}>ASSETS REQUESTED</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {(cfg.assets as string[]).map((a) => (
+                        <span key={a} style={{ padding: "5px 10px", borderRadius: 7, background: "#0F1218", border: "1px solid rgba(255,255,255,.09)", font: "500 11px Inter, sans-serif", color: "#AEB5C2" }}>{a}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Staff */}
+                {!!cfg?.staff && typeof cfg.staff === "object" && (
+                  <InfoRow
+                    label="Event staff"
+                    value={`${(cfg.staff as { count: number }).count} × €${(cfg.staff as { costPerPerson: number }).costPerPerson}/person`}
+                  />
+                )}
+
+                {/* Access */}
+                {!!cfg?.access && typeof cfg.access === "object" && (
+                  <InfoRow
+                    label="Visibility"
+                    value={`${(cfg.access as { visibility: string }).visibility === "public" ? "Public" : "Private"}${(cfg.access as { externalGuests: boolean }).externalGuests ? " · External guests allowed" : ""}`}
+                  />
+                )}
+
+                {/* Estimated total */}
+                {typeof cfg?.estimatedTotal === "number" && cfg.estimatedTotal > 0 && (
+                  <InfoRow label="Organizer estimate" value={`€${cfg.estimatedTotal.toLocaleString()}`} highlight />
+                )}
+
+                {/* Q&A answers */}
+                {Array.isArray(answers) && answers.filter((a) => a.answer).length > 0 && (
+                  <div>
+                    <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginBottom: 9 }}>ORGANIZER ANSWERS</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {answers.filter((a) => a.answer).map((a, i) => (
+                        <div key={i}>
+                          <div style={{ font: "600 12px Inter, sans-serif", color: "#fff", marginBottom: 3 }}>{a.question}</div>
+                          <div style={{ font: "400 12px/1.5 Inter, sans-serif", color: "#AEB5C2" }}>{a.answer}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -264,6 +373,15 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
         </div>
       )}
     </ScreenContainer>
+  );
+}
+
+function InfoRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+      <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", flex: "none" }}>{label.toUpperCase()}</span>
+      <span style={{ font: `${highlight ? "700" : "500"} 13px Inter, sans-serif`, color: highlight ? "#C8F000" : "#E6E9EF", textAlign: "right" }}>{value}</span>
+    </div>
   );
 }
 

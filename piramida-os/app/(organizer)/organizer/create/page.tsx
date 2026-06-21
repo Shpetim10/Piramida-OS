@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { PyramidMap } from "@/components/pyramid3d/PyramidMap";
 import { useViewport } from "@/lib/useViewport";
+import { useTasksStore, type NewTaskCard } from "@/lib/manager/tasks-store";
 import {
   ASSETS,
   type DayType,
@@ -141,10 +142,15 @@ export default function CreateEventPage() {
   const [staffCount, setStaffCount] = useState(2);
   const [allowExternalGuests, setAllowExternalGuests] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [eventType, setEventType] = useState("event");
   const [gaps, setGaps] = useState<Set<GapField>>(new Set());
   // The two proposed placements + the one the organizer picked.
   const [solutions, setSolutions] = useState<Solution[]>([]);
   const [selectedSolution, setSelectedSolution] = useState<Solution | null>(null);
+
+  // Run-of-show tasks generated for the manager board on plan confirmation.
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksAdded, setTasksAdded] = useState<number | null>(null);
 
   function clearGap(field: GapField) {
     setGaps((prev) => {
@@ -245,6 +251,7 @@ export default function CreateEventPage() {
   // quote are computed deterministically below from this state. Everything it
   // pre-fills stays freely editable by the organizer.
   function applyExtraction(ex: Extraction) {
+    if (ex.eventType) setEventType(ex.eventType);
     const guests = typeof ex.expectedGuests === "number" && ex.expectedGuests > 0 ? ex.expectedGuests : 0;
     if (guests > 0) setAttendees(Math.min(450, Math.max(20, guests)));
 
@@ -403,10 +410,50 @@ export default function CreateEventPage() {
         return;
       }
       setStage("sent");
+      // The AI is an enhancement, not a gate — generate run-of-show tasks in the
+      // background so reaching the confirmation screen is never blocked on it.
+      void generateRunOfShowTasks();
     } catch {
       setSubmitError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Turn the organizer's CHOICES into run-of-show tasks (deterministic core +
+  // Gemini enrichment, server-side) and push them onto the shared manager Tasks
+  // board. Best-effort: any failure simply leaves the count unset.
+  async function generateRunOfShowTasks() {
+    setTasksLoading(true);
+    setTasksAdded(null);
+    try {
+      const res = await fetch("/api/organizer/plan-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType,
+          attendees,
+          schedule: { startDate, endDate, days: days.map((d) => ({ date: d.date, type: d.type })) },
+          assets,
+          services,
+          rooms,
+          access: { externalGuests: allowExternalGuests, isPublic },
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && Array.isArray(data?.tasks) && data.tasks.length) {
+        // Pull the latest persisted board first so we append (not overwrite) any
+        // tasks the manager already has, then add ours to the "todo" column.
+        await useTasksStore.persist.rehydrate();
+        const added = useTasksStore.getState().addGeneratedTasks(data.tasks as NewTaskCard[]);
+        setTasksAdded(added);
+      } else {
+        setTasksAdded(0);
+      }
+    } catch {
+      setTasksAdded(0);
+    } finally {
+      setTasksLoading(false);
     }
   }
 
@@ -1215,6 +1262,43 @@ export default function CreateEventPage() {
               <div style={summaryRow}><span>Daily time</span><span style={{ color: "#fff" }}>{days[0].start} – {days[0].end}</span></div>
               <div style={summaryRow}><span>Estimated total</span><span style={{ color: "#C8F000", fontFamily: "'JetBrains Mono', monospace" }}>€{fmt(total)}</span></div>
             </div>
+
+            {(tasksLoading || tasksAdded !== null) && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  maxWidth: 360,
+                  margin: "0 auto 28px",
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  border: `1px solid ${tasksAdded && tasksAdded > 0 ? "rgba(200,240,0,.3)" : "rgba(255,255,255,.1)"}`,
+                  background: tasksAdded && tasksAdded > 0 ? "rgba(200,240,0,.05)" : "#151821",
+                  font: "600 13px Inter, sans-serif",
+                  color: "#AEB5C2",
+                  textAlign: "left",
+                }}
+              >
+                {tasksLoading ? (
+                  <>
+                    <span style={{ width: 22, height: 22, borderRadius: 7, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(200,240,0,.12)", animation: "aiGlow 1.4s ease-in-out infinite" }}>
+                      {sparkle}
+                    </span>
+                    Pyramid AI is preparing your run-of-show tasks…
+                  </>
+                ) : tasksAdded && tasksAdded > 0 ? (
+                  <>
+                    <span style={{ width: 22, height: 22, borderRadius: "50%", flex: "none", display: "flex", alignItems: "center", justifyContent: "center", background: "#22C55E", color: "#0D0D12", font: "700 12px Inter, sans-serif" }}>
+                      ✓
+                    </span>
+                    <span style={{ color: "#fff" }}>{tasksAdded} task{tasksAdded > 1 ? "s" : ""} added to the operations board</span>
+                  </>
+                ) : (
+                  <span>The venue team will prepare your operational tasks.</span>
+                )}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
               <Link href="/organizer/requests" style={{ padding: "14px 24px", borderRadius: 12, background: "#C8F000", color: "#0D0D12", font: "700 14px Inter, sans-serif", textDecoration: "none" }}>
                 View in Requests
