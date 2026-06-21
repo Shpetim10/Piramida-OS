@@ -71,7 +71,8 @@ export type BudgetConflict = {
     | "CAPACITY_WARNING"
     | "ASSET_SHORTAGE_RISK"
     | "SERVICE_OMITTED"
-    | "UNDER_SPEC";
+    | "UNDER_SPEC"
+    | "VENUE_UNAVAILABLE";
   message: string;
   suggestion: string;
 };
@@ -235,6 +236,8 @@ export function allocateBudget(input: {
   eventType: string;
   guestCount: number;
   days: number;
+  /** Venue names (from EVENT_VENUES) that are already booked on the requested dates */
+  unavailableVenueNames?: string[];
 }): BudgetPackage {
   const { budget, guestCount, days } = input;
   const eventType: string = SUPPORTED_EVENT_TYPES.includes(
@@ -244,16 +247,22 @@ export function allocateBudget(input: {
     : "conference";
   const profile = PROFILES[eventType];
 
+  const unavailableSet = new Set(input.unavailableVenueNames ?? []);
+
   // Budget is gross (VAT-inclusive); all line items are priced pre-VAT.
   const preTaxBudget = budget / (1 + VAT_RATE);
   let remaining = preTaxBudget;
 
   // ── Step 1: Primary venue ──────────────────────────────────────────────
-  const halls = EVENT_VENUES.filter((v) => v.kind === "hall").sort(
+  const allHalls = EVENT_VENUES.filter((v) => v.kind === "hall").sort(
     (a, b) => a.capacity - b.capacity,
   );
+  // Prefer halls that are free on the requested dates; fall back to all halls
+  // if every hall is booked (planner still shows a package, conflicts surface it).
+  const halls = allHalls.filter((h) => !unavailableSet.has(h.name));
+  const hallsToUse = halls.length > 0 ? halls : allHalls;
   const primaryHall =
-    halls.find((h) => h.capacity >= guestCount) ?? halls[halls.length - 1];
+    hallsToUse.find((h) => h.capacity >= guestCount) ?? hallsToUse[hallsToUse.length - 1];
   const primaryCost = primaryHall.pricePerDay * days;
 
   const venues: BudgetVenueItem[] = [];
@@ -283,7 +292,7 @@ export function allocateBudget(input: {
 
   // ── Step 2: Breakout rooms ─────────────────────────────────────────────
   if (profile.breakoutCount > 0) {
-    const candidates = halls
+    const candidates = hallsToUse
       .filter((h) => h.id !== primaryHall.id)
       .slice(0, profile.breakoutCount);
     for (const hall of candidates) {
@@ -421,6 +430,18 @@ export function allocateBudget(input: {
     services,
     remaining,
   });
+
+  // Prepend unavailability conflicts so they appear first and most prominently.
+  if (unavailableSet.size > 0) {
+    const names = [...unavailableSet].join(", ");
+    const plural = unavailableSet.size > 1;
+    conflicts.unshift({
+      severity: "high",
+      type: "VENUE_UNAVAILABLE",
+      message: `${names} ${plural ? "are" : "is"} already booked on your dates.`,
+      suggestion: `Alternative ${plural ? "venues have" : "venue has"} been selected automatically. Consider different dates if you need ${plural ? "those specific spaces" : "that specific space"}.`,
+    });
+  }
 
   // ── Tier ───────────────────────────────────────────────────────────────
   const tier: BudgetPackage["tier"] =

@@ -168,6 +168,8 @@ export default function BudgetPlannerPage() {
   const [budgetInput, setBudgetInput] = useState("5000");
   const [guestCount, setGuestCount] = useState(100);
   const [days, setDays] = useState(1);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [result, setResult] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -213,7 +215,14 @@ export default function BudgetPlannerPage() {
       const res = await fetch("/api/organizer/budget-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventType, budget, guestCount, days }),
+        body: JSON.stringify({
+          eventType,
+          budget,
+          guestCount,
+          days,
+          ...(startDate ? { startDate } : {}),
+          ...(endDate ? { endDate: endDate || startDate } : {}),
+        }),
       });
       if (res.status === 401) {
         window.location.assign("/login?next=/organizer/budget");
@@ -766,6 +775,47 @@ export default function BudgetPlannerPage() {
           </div>
         </div>
 
+        {/* Event dates — for real availability checking */}
+        <div style={{ marginBottom: 28 }}>
+          <label style={{ font: "600 12px/1 Inter, sans-serif", color: "#AEB5C2", letterSpacing: ".04em", textTransform: "uppercase", display: "block", marginBottom: 10 }}>
+            Event Dates <span style={{ font: "400 10px/1 Inter, sans-serif", color: "#525B6B", letterSpacing: "0", textTransform: "none", marginLeft: 6 }}>— used to check real venue availability</span>
+          </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderRadius: 12, background: "#151821", border: `1px solid ${startDate ? "rgba(200,240,0,.22)" : "rgba(255,255,255,.08)"}`, transition: "border-color .2s" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={startDate ? "rgba(200,240,0,.7)" : "#525B6B"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+              <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+            </svg>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                if (!endDate || endDate < e.target.value) setEndDate(e.target.value);
+              }}
+              style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: startDate ? "#fff" : "#525B6B", font: "500 13px Inter, sans-serif", colorScheme: "dark" }}
+            />
+            <span style={{ color: "#3D4555", font: "400 12px Inter, sans-serif", flex: "none" }}>→</span>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: endDate ? "#fff" : "#525B6B", font: "500 13px Inter, sans-serif", colorScheme: "dark" }}
+            />
+            {(startDate || endDate) && (
+              <button
+                onClick={() => { setStartDate(""); setEndDate(""); }}
+                style={{ flex: "none", background: "none", border: "none", color: "#525B6B", cursor: "pointer", font: "500 12px Inter, sans-serif", padding: "0 2px" }}
+                aria-label="Clear dates"
+              >✕</button>
+            )}
+          </div>
+          {!startDate && (
+            <div style={{ font: "400 11px/1 Inter, sans-serif", color: "#3D4555", marginTop: 6 }}>
+              Skip to see all venues — add dates to filter out already-booked spaces.
+            </div>
+          )}
+        </div>
+
         {/* Budget summary preview */}
         <div className="fi-3" style={{ padding: "14px 18px", borderRadius: 14, background: "#151821", border: "1px solid rgba(255,255,255,.07)", marginBottom: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
@@ -774,6 +824,7 @@ export default function BudgetPlannerPage() {
               { label: "Budget", value: `€${budget.toLocaleString()}` },
               { label: "Guests", value: String(guestCount) },
               { label: "Days", value: `${days} day${days > 1 ? "s" : ""}` },
+              ...(startDate ? [{ label: "From", value: new Date(`${startDate}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) }] : []),
             ].map((item) => (
               <div key={item.label} style={{ textAlign: "center" }}>
                 <div style={{ font: "400 10px/1 'JetBrains Mono', monospace", color: "#5A6278", letterSpacing: ".1em", marginBottom: 4 }}>{item.label.toUpperCase()}</div>

@@ -144,6 +144,10 @@ export default function CreateEventPage() {
   const [stage, setStage] = useState<Stage>("prompt");
   const [text, setText] = useState("");
   const [eventName, setEventName] = useState("");
+  // Dates collected on the prompt stage — used for availability checking before
+  // plan generation. Pre-populate the result stage schedule when set.
+  const [planStartDate, setPlanStartDate] = useState("");
+  const [planEndDate, setPlanEndDate] = useState("");
   const [attendees, setAttendees] = useState(180);
   const [days, setDays] = useState<EventDay[]>([newDay()]);
   const [assets, setAssets] = useState<Assets>(() => Object.fromEntries(ASSETS.map((a) => [a.id, 0])));
@@ -307,13 +311,17 @@ export default function CreateEventPage() {
   }
 
   // Build the two right-sized options for a headcount and open the chooser.
-  function proposeSolutions(guests: number, needs?: Extraction["needs"]) {
-    const next = recommendSolutions(guests, {
-      breakoutRooms: needs?.breakoutRooms,
-      registrationDesk: needs?.registrationDesk,
-      publicGuestRegistration: needs?.publicGuestRegistration,
-      coffeeArea: needs?.coffeeArea,
-    });
+  function proposeSolutions(guests: number, needs?: Extraction["needs"], unavailableVenueNames?: string[]) {
+    const next = recommendSolutions(
+      guests,
+      {
+        breakoutRooms: needs?.breakoutRooms,
+        registrationDesk: needs?.registrationDesk,
+        publicGuestRegistration: needs?.publicGuestRegistration,
+        coffeeArea: needs?.coffeeArea,
+      },
+      unavailableVenueNames ? { unavailableVenueNames } : undefined,
+    );
     setSolutions(next);
     setSelectedSolution(null);
     setStage("choose");
@@ -330,21 +338,32 @@ export default function CreateEventPage() {
     setText(rawText);
     setPlanError(null);
     setStage("thinking");
+    // Pre-populate the first event day when the organizer already picked dates.
+    if (planStartDate) {
+      setDays((prev) => prev.map((d, i) => i === 0 ? { ...d, date: planStartDate } : d));
+    }
     try {
       const res = await fetch("/api/organizer/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText }),
+        body: JSON.stringify({
+          rawText,
+          ...(planStartDate ? { startDate: planStartDate } : {}),
+          ...(planEndDate ? { endDate: planEndDate || planStartDate } : {}),
+        }),
       });
       if (res.status === 401) {
         window.location.assign("/login?next=/organizer/create");
         return;
       }
       const data = await res.json().catch(() => null);
+      const unavailableVenueNames: string[] = Array.isArray(data?.unavailableVenueNames)
+        ? data.unavailableVenueNames
+        : [];
       if (!res.ok || !data?.extraction) {
         // The AI is an enhancement, not a gate — fall through to the planner.
         setPlanError(data?.error ?? "AI planning is unavailable right now — showing a standard plan.");
-        proposeSolutions(attendees);
+        proposeSolutions(attendees, undefined, unavailableVenueNames);
         return;
       }
       const ex = data.extraction as Extraction;
@@ -358,7 +377,7 @@ export default function CreateEventPage() {
       setGaps(new Set(realGaps));
       setQa(questions.map((question) => ({ question, answer: "" })));
       const guests = ex.expectedGuests > 0 ? Math.min(450, Math.max(20, ex.expectedGuests)) : attendees;
-      proposeSolutions(guests, ex.needs);
+      proposeSolutions(guests, ex.needs, unavailableVenueNames);
     } catch {
       setPlanError("Network error — showing a standard plan.");
       proposeSolutions(attendees);
@@ -591,6 +610,41 @@ export default function CreateEventPage() {
                   font: "400 16px/1.6 Inter, sans-serif",
                 }}
               />
+              {/* Date row — used for availability check before generation */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(200,240,0,.6)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+                  <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                </svg>
+                <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", flex: "none" }}>Event dates</span>
+                <input
+                  type="date"
+                  value={planStartDate}
+                  onChange={(e) => {
+                    setPlanStartDate(e.target.value);
+                    if (!planEndDate || planEndDate < e.target.value) setPlanEndDate(e.target.value);
+                  }}
+                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: "#fff", font: "500 12px Inter, sans-serif", colorScheme: "dark" }}
+                />
+                <span style={{ color: "#525B6B", font: "400 11px Inter, sans-serif", flex: "none" }}>→</span>
+                <input
+                  type="date"
+                  value={planEndDate}
+                  min={planStartDate}
+                  onChange={(e) => setPlanEndDate(e.target.value)}
+                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: "#fff", font: "500 12px Inter, sans-serif", colorScheme: "dark" }}
+                />
+                {(planStartDate || planEndDate) && (
+                  <button
+                    onClick={() => { setPlanStartDate(""); setPlanEndDate(""); }}
+                    style={{ flex: "none", background: "none", border: "none", color: "#525B6B", cursor: "pointer", font: "500 11px Inter, sans-serif", padding: "0 2px" }}
+                    aria-label="Clear dates"
+                  >✕</button>
+                )}
+                {!planStartDate && (
+                  <span style={{ font: "400 10px Inter, sans-serif", color: "#3D4555", flex: "none", whiteSpace: "nowrap" }}>optional — for availability</span>
+                )}
+              </div>
+
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {EXAMPLE_PROMPTS.map((p) => (
@@ -848,16 +902,32 @@ export default function CreateEventPage() {
 
                   <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".14em", marginBottom: 8 }}>ROOMS</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14 }}>
-                    {sol.picks.map((p) => (
-                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(200,240,0,.1)", border: "1px solid rgba(200,240,0,.22)", font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000", flex: "none" }}>
-                          {ROLE_CHIP[p.role]}
-                        </span>
-                        <span style={{ font: "600 13px Inter, sans-serif", color: "#fff" }}>{p.name}</span>
-                        <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799" }}>~{p.capacity}</span>
-                      </div>
-                    ))}
+                    {sol.picks.map((p) => {
+                      const booked = sol.unavailableRooms.includes(p.name);
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, opacity: booked ? 0.65 : 1 }}>
+                          <span style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(200,240,0,.1)", border: "1px solid rgba(200,240,0,.22)", font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000", flex: "none" }}>
+                            {ROLE_CHIP[p.role]}
+                          </span>
+                          <span style={{ font: "600 13px Inter, sans-serif", color: booked ? "#7D8799" : "#fff", textDecoration: booked ? "line-through" : "none" }}>{p.name}</span>
+                          <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799" }}>~{p.capacity}</span>
+                          {booked && (
+                            <span style={{ marginLeft: "auto", padding: "2px 7px", borderRadius: 5, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", font: "600 9px 'JetBrains Mono', monospace", color: "#EF4444", flex: "none" }}>
+                              BOOKED
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                  {sol.unavailableRooms.length > 0 && (
+                    <div style={{ display: "flex", gap: 8, padding: "8px 10px", borderRadius: 8, background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.2)", marginBottom: 10 }}>
+                      <span style={{ color: "#EF4444", flex: "none", marginTop: 1 }}>⚠</span>
+                      <span style={{ font: "400 11px/1.4 Inter, sans-serif", color: "#EF4444" }}>
+                        {sol.unavailableRooms.length === 1 ? `${sol.unavailableRooms[0]} is` : `${sol.unavailableRooms.join(", ")} are`} already booked on your dates. Choose a different date or select the other plan.
+                      </span>
+                    </div>
+                  )}
 
                   <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".14em", marginBottom: 8 }}>WHY THIS PLAN</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 12 }}>

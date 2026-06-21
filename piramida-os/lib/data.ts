@@ -403,6 +403,8 @@ export interface Solution {
   strengths: string[];
   /** one-line comparative argument versus the other solution */
   tradeoff: string;
+  /** room names that are booked on the requested dates (empty when no dates given) */
+  unavailableRooms: string[];
 }
 
 /** Standard AV bundle assumed for the "from" estimate (1 screen, 1 projector,
@@ -456,6 +458,7 @@ function buildSolution(id: "A" | "B", tier: "Value" | "Premium", keynote: EventV
     estimatedCost,
     strengths,
     tradeoff: "",
+    unavailableRooms: [],
   };
 }
 
@@ -467,19 +470,23 @@ function buildSolution(id: "A" | "B", tier: "Value" | "Premium", keynote: EventV
 export function recommendSolutions(
   attendees: number,
   needs?: { breakoutRooms?: number; registrationDesk?: boolean; publicGuestRegistration?: boolean; coffeeArea?: boolean },
+  availability?: { unavailableVenueNames: string[] },
 ): Solution[] {
-  const byCapAsc = [...HALLS].sort((a, b) => a.capacity - b.capacity);
-  const largest = byCapAsc[byCapAsc.length - 1];
+  const unavailable = new Set(availability?.unavailableVenueNames ?? []);
+  const allByCapAsc = [...HALLS].sort((a, b) => a.capacity - b.capacity);
+  // Prefer available halls; fall back to all if none are free on the requested dates.
+  const byCapAsc = allByCapAsc.filter((h) => !unavailable.has(h.name));
+  const hallsToUse = byCapAsc.length > 0 ? byCapAsc : allByCapAsc;
+  const largest = hallsToUse[hallsToUse.length - 1];
 
-  // Value keynote: smallest hall that fits (or the largest if nothing fits).
-  const valueHall = byCapAsc.find((h) => h.capacity >= attendees) ?? largest;
-  // Premium keynote: a STRICTLY larger hall when one exists (otherwise the same,
-  // and we differentiate by adding an extra hall below).
-  const premiumHall = byCapAsc.find((h) => h.capacity > valueHall.capacity) ?? valueHall;
+  // Value keynote: smallest available hall that fits (or the largest available).
+  const valueHall = hallsToUse.find((h) => h.capacity >= attendees) ?? largest;
+  // Premium keynote: a STRICTLY larger available hall when one exists.
+  const premiumHall = hallsToUse.find((h) => h.capacity > valueHall.capacity) ?? valueHall;
 
   const breakoutN = needs?.breakoutRooms && needs.breakoutRooms > 0 ? needs.breakoutRooms : 0;
   const pickBreakouts = (keynoteId: string, n: number): EventVenue[] =>
-    byCapAsc.filter((h) => h.id !== keynoteId).slice(0, n);
+    hallsToUse.filter((h) => h.id !== keynoteId).slice(0, n);
   // When Premium can't go bigger (Value already uses the largest hall), give it
   // an extra breakout/expo hall so it's still a meaningfully roomier plan.
   const premiumBreakoutN = premiumHall.id === valueHall.id ? breakoutN + 1 : breakoutN;
@@ -493,6 +500,12 @@ export function recommendSolutions(
 
   const value = buildSolution("A", "Value", valueHall, pickBreakouts(valueHall.id, breakoutN), valueSupport, attendees);
   const premium = buildSolution("B", "Premium", premiumHall, pickBreakouts(premiumHall.id, premiumBreakoutN), premiumSupport, attendees);
+
+  // Tag which room names in each solution are unavailable on the requested dates.
+  if (unavailable.size > 0) {
+    value.unavailableRooms = value.picks.map((p) => p.name).filter((n) => unavailable.has(n));
+    premium.unavailableRooms = premium.picks.map((p) => p.name).filter((n) => unavailable.has(n));
+  }
 
   // Comparative trade-off lines.
   const diff = premium.estimatedCost - value.estimatedCost;
