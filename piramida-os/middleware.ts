@@ -1,44 +1,14 @@
-// Keeps the Supabase auth session fresh on every request by rotating the
-// access/refresh-token cookies (the documented @supabase/ssr pattern). It does
-// NOT make authorization decisions — role/type checks run in the route-group
-// layouts (Node runtime, with Prisma). When Supabase env is absent (e.g. pure
-// DEMO_MODE), it passes through untouched so the demo cookie still works.
+// Middleware runs in Vercel's Edge Runtime (not Node.js).
+// Supabase session refresh is handled in server layouts which run in Node.js.
+// This file only controls which paths are matched — keeping it import-free
+// prevents MIDDLEWARE_INVOCATION_FAILED on Vercel.
 import { type NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
-
-  try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !anonKey) return response;
-
-    const supabase = createServerClient(url, anonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
-        },
-      },
-    });
-
-    await supabase.auth.getUser();
-  } catch {
-    // Session refresh failure must not block requests — return best-effort response.
-  }
-
-  return response;
+export function middleware(request: NextRequest) {
+  return NextResponse.next({ request });
 }
 
 export const config = {
-  // Run on everything except Next internals and static assets.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
