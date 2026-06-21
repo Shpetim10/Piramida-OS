@@ -263,6 +263,11 @@ enum QuoteStatus {
   SUPERSEDED
 }
 
+enum QuoteType {
+  ORIGINAL
+  SUPPLEMENT
+}
+
 enum ProposalStatus {
   DRAFT
   SENT
@@ -1193,6 +1198,8 @@ model Quote {
   eventId       String      @map("event_id") @db.Uuid
   clientId      String      @map("client_id") @db.Uuid
   status        QuoteStatus @default(DRAFT)
+  quoteType     QuoteType   @default(ORIGINAL) @map("quote_type")
+  parentQuoteId String?     @map("parent_quote_id") @db.Uuid
   currency      String      @default("ALL")
   subtotal      Decimal     @default(0) @db.Decimal(12, 2)
   taxTotal      Decimal     @default(0) @map("tax_total") @db.Decimal(12, 2)
@@ -1205,12 +1212,15 @@ model Quote {
   updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt     DateTime?   @map("deleted_at") @db.Timestamptz(6)
 
-  event     Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  client    Client      @relation(fields: [clientId], references: [id])
-  items     QuoteItem[]
-  proposals Proposal[]
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  client      Client      @relation(fields: [clientId], references: [id])
+  items       QuoteItem[]
+  proposals   Proposal[]
+  supplements Quote[]     @relation("QuoteSupplements")
+  parentQuote Quote?      @relation("QuoteSupplements", fields: [parentQuoteId], references: [id])
 
   @@index([orgId, eventId])
+  @@index([orgId, eventId, quoteType])
   @@map("quotes")
 }
 

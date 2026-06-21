@@ -1,13 +1,44 @@
-import { use } from "react";
+"use client";
+
 import Link from "next/link";
+import { use, useEffect, useState } from "react";
 import { StaffForm } from "@/components/admin/StaffForm";
-import { findStaff } from "@/lib/admin/data";
+
+interface StaffProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  profileRoles: { role: { code: string; label: string } }[];
+}
 
 export default function EditStaffPage({ params }: { params: Promise<{ profileId: string }> }) {
   const { profileId } = use(params);
-  const member = findStaff(profileId);
+  const [profile, setProfile] = useState<StaffProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  if (!member) {
+  useEffect(() => {
+    fetch(`/api/admin/staff/${profileId}`)
+      .then((r) => {
+        if (r.status === 404) { setNotFound(true); return null; }
+        return r.json();
+      })
+      .then((d) => {
+        if (d?.id) setProfile(d);
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [profileId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: "26px 42px 80px", font: "500 13px Inter, sans-serif", color: "#7D8799" }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (notFound || !profile) {
     return (
       <div style={{ padding: "26px 42px 80px" }}>
         <div style={{ border: "1px solid rgba(255,255,255,.08)", borderRadius: 16, background: "#151821", padding: 24, maxWidth: 520 }}>
@@ -23,5 +54,15 @@ export default function EditStaffPage({ params }: { params: Promise<{ profileId:
     );
   }
 
-  return <StaffForm mode="edit" initialName={member.name} initialEmail={member.email} initialRole={member.role} />;
+  const roleCode = profile.profileRoles[0]?.role?.code ?? "EVENT_MANAGER";
+
+  return (
+    <StaffForm
+      mode="edit"
+      profileId={profile.id}
+      initialName={profile.fullName}
+      initialEmail={profile.email}
+      initialRole={roleCode}
+    />
+  );
 }

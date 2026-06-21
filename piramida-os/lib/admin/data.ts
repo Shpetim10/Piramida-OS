@@ -106,8 +106,13 @@ export function findStaff(slug: string): StaffMember | undefined {
   return STAFF.find((s) => staffSlug(s.name) === slug);
 }
 
-// Roles assignable in the create/edit form.
-export const ASSIGNABLE_ROLES = ["Event Manager", "Operations Manager", "Inventory Manager", "Technician", "Finance Manager"];
+// Roles assignable in the create/edit form (code must match the RoleCode enum).
+export const ASSIGNABLE_ROLES: { code: string; label: string }[] = [
+  { code: "EVENT_MANAGER", label: "Event Manager" },
+  { code: "OPERATIONS_MANAGER", label: "Operations Manager" },
+  { code: "TECHNICIAN", label: "Technician" },
+  { code: "ADMIN", label: "Administrator" },
+];
 
 // ---------- Permissions ----------
 export interface RoleDefinition {

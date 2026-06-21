@@ -3,32 +3,9 @@
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useViewport } from "@/lib/useViewport";
-<<<<<<< Updated upstream
-import { PyramidTwin } from "@/components/manager/twin";
-=======
+import { PyramidTwin } from "@/lib/PyramidTwin";
 import { recRooms, ROOM_NAME } from "@/lib/data";
-
-type AgendaItem = {
-  title: string;
-  description: string | null;
-  startsAt: string | null;
-  endsAt: string | null;
-  space: string | null;
-};
-
-type PublishedEvent = {
-  slug: string;
-  title: string | null;
-  description: string | null;
-  start: string | null;
-  end: string | null;
-  venue: string | null;
-  registrationOpen: boolean;
-  capacity: number | null;
-  remainingCapacity: number | null;
-  agendaItems: AgendaItem[];
-};
->>>>>>> Stashed changes
+import { getRegistration, saveRegistration } from "@/lib/guest-registrations";
 
 const LIME = "#C8F000";
 
@@ -90,6 +67,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
   const [formError, setFormError] = useState<string | null>(null);
   const [registered, setRegistered] = useState<RegisteredState | null>(null);
 
+  // Restore prior registration from cookie on mount.
+  useEffect(() => {
+    const saved = getRegistration(slug);
+    if (saved) setRegistered(saved);
+  }, [slug]);
+
   useEffect(() => {
     fetch(`/api/public/events/${encodeURIComponent(slug)}`)
       .then((r) => {
@@ -120,7 +103,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
       });
       const data = await res.json() as { status?: string; ticketToken?: string | null; error?: string };
       if (!res.ok) { setFormError(data.error ?? "Registration failed."); return; }
-      setRegistered({ status: data.status ?? "CONFIRMED", ticketToken: data.ticketToken ?? null });
+      const entry = { status: data.status ?? "CONFIRMED", ticketToken: data.ticketToken ?? null };
+      saveRegistration(slug, entry);
+      setRegistered(entry);
     } catch {
       setFormError("Network error — please try again.");
     } finally {
@@ -149,22 +134,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
     );
   }
 
-<<<<<<< Updated upstream
-=======
-  const filledSpots = event.capacity != null && event.remainingCapacity != null
-    ? event.capacity - event.remainingCapacity
-    : null;
-  const fillPct = event.capacity && filledSpots != null
-    ? Math.round((filledSpots / event.capacity) * 100)
-    : null;
-
-  const startDate = event.start ? new Date(event.start) : null;
-  const endDate = event.end ? new Date(event.end) : null;
-
-  // Guest map highlights the real 3D rooms recommended for this event's size.
   const guestRooms = recRooms(event.capacity ?? 180);
 
->>>>>>> Stashed changes
   return (
     <div>
       {/* Hero */}

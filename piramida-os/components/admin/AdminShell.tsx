@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useViewport } from "@/lib/useViewport";
 import { ADMIN_LABELS } from "@/lib/admin/data";
 import { logoutAction } from "@/lib/auth/logout";
@@ -45,6 +45,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const isMobile = vw < 980;
   const isNarrow = vw < 720;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [approvalsCount, setApprovalsCount] = useState<number | null>(null);
+  const [requestsCount, setRequestsCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/organizers")
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setApprovalsCount(Array.isArray(d) ? d.length : 0))
+      .catch(() => {});
+    fetch("/api/admin/event-requests")
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setRequestsCount(Array.isArray(d) ? d.length : 0))
+      .catch(() => {});
+  }, []);
 
   const screen = resolveScreen(pathname);
   // Staff sub-screens (new / edit) keep the "Staff Management" nav item active.
@@ -52,8 +65,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [kicker, label] = ADMIN_LABELS[screen] || ["", ""];
 
   const nav: NavItem[] = [
-    { id: "approvals", label: "Organizer Approvals", icon: "approvals", href: "/admin/organizer-approvals", badge: "3" },
-    { id: "requests", label: "Event Requests", icon: "requests", href: "/admin/event-requests" },
+    { id: "approvals", label: "Organizer Approvals", icon: "approvals", href: "/admin/organizer-approvals", badge: approvalsCount != null && approvalsCount > 0 ? String(approvalsCount) : undefined },
+    { id: "requests", label: "Event Requests", icon: "requests", href: "/admin/event-requests", badge: requestsCount != null && requestsCount > 0 ? String(requestsCount) : undefined },
     { id: "staff", label: "Staff Management", icon: "staff", href: "/admin/users" },
     { id: "permissions", label: "Permissions", icon: "permissions", href: "/admin/permissions" },
   ];
