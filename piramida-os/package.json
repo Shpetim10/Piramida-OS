@@ -18,7 +18,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "db:check": "prisma validate && prisma migrate status",
-    "admin:create": "tsx scripts/create-admin.ts"
+    "admin:create": "tsx scripts/create-admin.ts",
+    "manager:create": "tsx scripts/create-manager.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

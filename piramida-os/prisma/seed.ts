@@ -104,9 +104,9 @@ async function main() {
     const profileId = sid(`profile:${s.key}`);
     await prisma.profile.upsert({
       where: { id: profileId },
-      // authUserId mirrors the profile id so DEMO_MODE login can resolve a real
-      // profile by id until Supabase Auth issues real auth.users ids.
-      update: { fullName: s.name, status: ProfileStatus.ACTIVE, authUserId: profileId },
+      // Do NOT overwrite authUserId on update — once a real Supabase user is
+      // linked, resetting it to the seed UUID would break email/password login.
+      update: { fullName: s.name, status: ProfileStatus.ACTIVE },
       create: {
         id: profileId,
         orgId: ORG_ID,

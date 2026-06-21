@@ -146,6 +146,16 @@ export async function getEvent(id: string) {
       proposals: true,
       publication: true,
       planVersions: { orderBy: { version: "desc" }, take: 5 },
+      request: {
+        select: {
+          rawText: true,
+          clarifications: true,
+          extractedJson: true,
+          missingFields: true,
+          confidence: true,
+          contact: { select: { firstName: true, lastName: true } },
+        },
+      },
     },
   });
 }
