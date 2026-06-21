@@ -5,6 +5,32 @@ import { notFound } from "next/navigation";
 
 const LIME = "#C8F000";
 
+// Shape of the organizer's booking captured at submit (lib/services/event-requests
+// submitOrganizerEventRequest → EventRequest.clarifications JSON).
+type ClarSolutionPick = { name?: string; role?: string; capacity?: number; price?: number; kind?: string };
+type ClarSolution = { tier?: string; label?: string; capacity?: number; estimatedCost?: number; picks?: ClarSolutionPick[] };
+type ClarDay = { date?: string; type?: string; start?: string; end?: string };
+type Clarifications = {
+  schedule?: { startDate?: string; endDate?: string; days?: ClarDay[] };
+  configuration?: {
+    attendees?: number;
+    assets?: string[];
+    services?: string[];
+    access?: { externalGuests?: boolean; visibility?: string };
+    estimatedTotal?: number;
+    solution?: ClarSolution;
+  };
+};
+
+function prettyDate(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+}
+
+const ROLE_TINT: Record<string, string> = { keynote: "#C8F000", breakout: "#5fc24a", support: "#7D8799" };
+
 export default async function Page({ params }: { params: Promise<{ requestId: string }> }) {
   const { requestId } = await params;
 
@@ -20,6 +46,12 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
   const extracted = request.extractedJson as Record<string, unknown> | null;
   const missingFields = (request.missingFields as string[] | null) ?? [];
   const confidence = request.confidence != null ? Math.round(request.confidence * 100) : null;
+
+  // The organizer's actual booking (name + chosen plan + schedule + quote).
+  const clar = (request.clarifications as Clarifications | null) ?? null;
+  const config = clar?.configuration;
+  const solution = config?.solution;
+  const days = (clar?.schedule?.days ?? []).filter((d) => d.date);
 
   const extractedFields = extracted
     ? [
@@ -53,6 +85,19 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
     : "Unknown";
   const clientName = request.client?.name ?? "Unknown";
 
+  // Structured data submitted via the organizer form (attendees, schedule, assets, etc.)
+  const clarifs = request.clarifications as Record<string, unknown> | null;
+  const cfg = clarifs?.configuration as Record<string, unknown> | null;
+  const sched = clarifs?.schedule as Record<string, unknown> | null;
+  const answers = clarifs?.answers as { question: string; answer: string }[] | null;
+
+  function prettyDate(iso: unknown): string {
+    if (typeof iso !== "string" || !iso) return "—";
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+  }
+
   return (
     <ScreenContainer>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.05fr", gap: 18, alignItems: "start" }}>
@@ -79,6 +124,102 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
             <p style={{ font: "400 15px/1.7 Inter, sans-serif", color: "#E6E9EF", margin: 0, textWrap: "pretty" }}>
               &ldquo;{request.rawText}&rdquo;
             </p>
+
+            {clarifs && (
+              <div style={{ marginTop: 22, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em" }}>
+                  SUBMITTED DETAILS
+                </div>
+
+                {/* Attendees */}
+                {!!cfg?.attendees && (
+                  <InfoRow label="Attendees" value={String(cfg.attendees)} />
+                )}
+
+                {/* Schedule */}
+                {!!sched && !!(sched.startDate || sched.endDate) && (
+                  <InfoRow
+                    label="Schedule"
+                    value={
+                      sched.startDate === sched.endDate || !sched.endDate
+                        ? prettyDate(sched.startDate)
+                        : `${prettyDate(sched.startDate)} → ${prettyDate(sched.endDate)}`
+                    }
+                  />
+                )}
+
+                {/* Days breakdown */}
+                {Array.isArray(cfg?.days) && (cfg.days as { day: number; date: string; type: string }[]).length > 0 && (
+                  <div>
+                    <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginBottom: 7 }}>DAYS</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      {(cfg.days as { day: number; date: string; type: string }[]).map((d) => (
+                        <div key={d.day} style={{ display: "flex", gap: 10, font: "500 12px Inter, sans-serif", color: "#AEB5C2" }}>
+                          <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", width: 38, flex: "none" }}>DAY {d.day}</span>
+                          <span>{prettyDate(d.date)}</span>
+                          <span style={{ marginLeft: "auto", font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000" }}>
+                            {d.type === "half" ? "½ day" : "Full day"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Services */}
+                {Array.isArray(cfg?.services) && (cfg.services as string[]).length > 0 && (
+                  <InfoRow label="Services" value={(cfg.services as string[]).join(", ")} />
+                )}
+
+                {/* Assets */}
+                {Array.isArray(cfg?.assets) && (cfg.assets as string[]).length > 0 && (
+                  <div>
+                    <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginBottom: 7 }}>ASSETS REQUESTED</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {(cfg.assets as string[]).map((a) => (
+                        <span key={a} style={{ padding: "5px 10px", borderRadius: 7, background: "#0F1218", border: "1px solid rgba(255,255,255,.09)", font: "500 11px Inter, sans-serif", color: "#AEB5C2" }}>{a}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Staff */}
+                {!!cfg?.staff && typeof cfg.staff === "object" && (
+                  <InfoRow
+                    label="Event staff"
+                    value={`${(cfg.staff as { count: number }).count} × €${(cfg.staff as { costPerPerson: number }).costPerPerson}/person`}
+                  />
+                )}
+
+                {/* Access */}
+                {!!cfg?.access && typeof cfg.access === "object" && (
+                  <InfoRow
+                    label="Visibility"
+                    value={`${(cfg.access as { visibility: string }).visibility === "public" ? "Public" : "Private"}${(cfg.access as { externalGuests: boolean }).externalGuests ? " · External guests allowed" : ""}`}
+                  />
+                )}
+
+                {/* Estimated total */}
+                {typeof cfg?.estimatedTotal === "number" && cfg.estimatedTotal > 0 && (
+                  <InfoRow label="Organizer estimate" value={`€${cfg.estimatedTotal.toLocaleString()}`} highlight />
+                )}
+
+                {/* Q&A answers */}
+                {Array.isArray(answers) && answers.filter((a) => a.answer).length > 0 && (
+                  <div>
+                    <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginBottom: 9 }}>ORGANIZER ANSWERS</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {answers.filter((a) => a.answer).map((a, i) => (
+                        <div key={i}>
+                          <div style={{ font: "600 12px Inter, sans-serif", color: "#fff", marginBottom: 3 }}>{a.question}</div>
+                          <div style={{ font: "400 12px/1.5 Inter, sans-serif", color: "#AEB5C2" }}>{a.answer}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -151,7 +292,96 @@ export default async function Page({ params }: { params: Promise<{ requestId: st
           </div>
         </div>
       </div>
+
+      {/* Organizer's submitted plan — name, chosen rooms, schedule + quote. */}
+      {(request.title || solution || days.length > 0 || config) && (
+        <div style={{ marginTop: 18, border: "1px solid rgba(200,240,0,.22)", borderRadius: 18, background: "radial-gradient(560px 320px at 15% 0%,rgba(200,240,0,.06),#151821)", overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,.07)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <div style={{ font: "700 14px Inter, sans-serif", color: "#fff" }}>{request.title || "Untitled event"}</div>
+              <div style={{ font: "500 10px 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 3, letterSpacing: ".08em" }}>
+                ORGANIZER&apos;S PLAN{solution?.label ? ` · ${solution.label.toUpperCase()}` : ""}
+              </div>
+            </div>
+            {config?.estimatedTotal != null && (
+              <div style={{ textAlign: "right" }}>
+                <div style={{ font: "800 20px/1 Inter, sans-serif", color: LIME }}>€{config.estimatedTotal.toLocaleString("en-US")}</div>
+                <div style={{ font: "600 8px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", marginTop: 3 }}>EST. TOTAL · INCL VAT</div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ padding: 20, display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 20 }}>
+            {/* Rooms */}
+            <div>
+              <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 10 }}>REQUESTED ROOMS</div>
+              {solution?.picks && solution.picks.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {solution.picks.map((p, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <span style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(255,255,255,.05)", border: `1px solid ${ROLE_TINT[p.role ?? "support"] ?? "#7D8799"}55`, font: "600 9px 'JetBrains Mono', monospace", color: ROLE_TINT[p.role ?? "support"] ?? "#7D8799", textTransform: "uppercase", flex: "none" }}>
+                        {p.role ?? "room"}
+                      </span>
+                      <span style={{ font: "600 13px Inter, sans-serif", color: "#fff" }}>{p.name}</span>
+                      {p.capacity ? <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799" }}>~{p.capacity}</span> : null}
+                      {p.price != null ? <span style={{ marginLeft: "auto", font: "600 12px 'JetBrains Mono', monospace", color: "#AEB5C2" }}>€{p.price}/day</span> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ font: "400 13px Inter, sans-serif", color: "#7D8799" }}>No plan chosen.</div>
+              )}
+            </div>
+
+            {/* Schedule + logistics */}
+            <div>
+              <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 10 }}>SCHEDULE</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                {days.length > 0 ? (
+                  days.map((d, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, font: "500 12.5px Inter, sans-serif", color: "#E6E9EF" }}>
+                      <span>{prettyDate(d.date)}</span>
+                      <span style={{ font: "600 12px 'JetBrains Mono', monospace", color: "#AEB5C2" }}>
+                        {d.start ?? "—"}–{d.end ?? "—"} · {d.type === "half" ? "½ day" : "full"}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ font: "400 13px Inter, sans-serif", color: "#7D8799" }}>No dates provided.</div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                {config?.attendees != null && (
+                  <span style={{ padding: "5px 9px", borderRadius: 7, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", font: "600 11px Inter, sans-serif", color: "#E6E9EF" }}>{config.attendees} attendees</span>
+                )}
+                {(config?.services ?? []).map((s) => (
+                  <span key={s} style={{ padding: "5px 9px", borderRadius: 7, background: "rgba(200,240,0,.07)", border: "1px solid rgba(200,240,0,.18)", font: "600 11px Inter, sans-serif", color: "#E6E9EF" }}>{s}</span>
+                ))}
+                {config?.access?.visibility && (
+                  <span style={{ padding: "5px 9px", borderRadius: 7, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", font: "600 11px Inter, sans-serif", color: "#AEB5C2" }}>{config.access.visibility}</span>
+                )}
+              </div>
+
+              {(config?.assets ?? []).length > 0 && (
+                <div style={{ marginTop: 12, font: "400 12px/1.6 Inter, sans-serif", color: "#AEB5C2" }}>
+                  <span style={{ color: "#7D8799" }}>Assets: </span>{(config?.assets ?? []).join(" · ")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </ScreenContainer>
+  );
+}
+
+function InfoRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+      <span style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em", flex: "none" }}>{label.toUpperCase()}</span>
+      <span style={{ font: `${highlight ? "700" : "500"} 13px Inter, sans-serif`, color: highlight ? "#C8F000" : "#E6E9EF", textAlign: "right" }}>{value}</span>
+    </div>
   );
 }
 

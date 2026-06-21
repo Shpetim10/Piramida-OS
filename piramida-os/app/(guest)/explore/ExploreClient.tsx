@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { Pyramid3D } from "@/components/pyramid3d/Pyramid3D";
 import { usePyramid } from "@/lib/store";
@@ -8,6 +9,17 @@ import { FLOORS, getFloor } from "@/lib/pyramid-data";
 import { useViewport } from "@/lib/useViewport";
 import { EXPLORE_ORDER, ROOM_DETAIL, ROOM_ROLE, floorOfRoom, recRooms, spaceRef } from "@/lib/data";
 import type { LiveEventMarker } from "@/lib/services/events";
+
+// The sliced "layers" mini legend is its own WebGL canvas, so it must be
+// client-only (no SSR) — same pattern as the main Pyramid3D scene import.
+const FloorSliceMini = dynamic(() => import("@/components/pyramid3d/FloorSliceMini"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ display: "grid", placeItems: "center", width: "100%", height: "100%", color: "#7D8799", font: "500 10px 'JetBrains Mono', monospace", letterSpacing: ".1em" }}>
+      SLICING…
+    </div>
+  ),
+});
 
 // The demo recommendation: rooms the AI suggests for a ~180-guest conference.
 const DEMO_ATTENDEES = 180;
@@ -22,12 +34,14 @@ function ExploreInner({ liveEvents }: { liveEvents: LiveEventMarker[] }) {
   const spaceId = usePyramid((s) => s.spaceId);
   const selectFloor = usePyramid((s) => s.selectFloor);
   const selectSpace = usePyramid((s) => s.selectSpace);
+  const explode = usePyramid((s) => s.explode);
   const reset = usePyramid((s) => s.reset);
 
   const highlight = useMemo(() => recRooms(DEMO_ATTENDEES), []);
 
-  // Open onto the floor of the first recommended room (or whatever room was
-  // deep-linked via ?room=) so the clickable rooms are visible immediately.
+  // Open onto the whole pyramid (exterior) first so visitors orbit the full
+  // building before diving into a floor — unless a room was deep-linked via
+  // ?room=, in which case jump straight into that room.
   useEffect(() => {
     const wanted = params.get("room");
     if (wanted && spaceRef(wanted)) {
@@ -36,7 +50,7 @@ function ExploreInner({ liveEvents }: { liveEvents: LiveEventMarker[] }) {
       selectSpace(wanted);
       return;
     }
-    selectFloor(floorOfRoom(highlight[0]) ?? -1);
+    reset();
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -111,7 +125,13 @@ function ExploreInner({ liveEvents }: { liveEvents: LiveEventMarker[] }) {
               3D MODEL
             </span>
             <span style={{ font: "500 10px 'JetBrains Mono', monospace", color: "#7D8799" }}>
-              {view === "interior" ? "ROOM VIEW · CLICK AWAY TO EXIT" : view === "floor" ? "CLICK A ROOM" : "ORBIT · DRAG TO ROTATE"}
+              {view === "interior"
+                ? "ROOM VIEW · CLICK AWAY TO EXIT"
+                : view === "floor"
+                ? "CLICK A ROOM"
+                : view === "exploded"
+                ? "LAYERS · CLICK A LEVEL"
+                : "ORBIT · DRAG TO ROTATE"}
             </span>
             {liveOnFloor.length > 0 && (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 8, background: "rgba(225,29,46,.15)", border: "1px solid rgba(225,29,46,.4)", font: "700 10px 'JetBrains Mono', monospace", color: "#ff5c6c", letterSpacing: ".1em" }}>
@@ -186,11 +206,61 @@ function ExploreInner({ liveEvents }: { liveEvents: LiveEventMarker[] }) {
             >
               ⌂
             </button>
+            {/* Sliced "layers" view — pulls the pyramid apart into one slab per
+                floor (click a slab to enter that floor). */}
+            <button
+              onClick={() => (view === "exploded" ? reset() : explode())}
+              title={view === "exploded" ? "Exit layers" : "Sliced layers view"}
+              style={{
+                minWidth: 34,
+                height: 34,
+                borderRadius: 9,
+                cursor: "pointer",
+                border: `1px solid ${view === "exploded" ? "#C8F000" : "rgba(255,255,255,.12)"}`,
+                background: view === "exploded" ? "#C8F000" : "transparent",
+                color: view === "exploded" ? "#0D0D12" : "#AEB5C2",
+                font: "800 15px Inter, sans-serif",
+                lineHeight: 1,
+              }}
+            >
+              ◤
+            </button>
           </div>
         </div>
 
         {/* Sidebar */}
         <div>
+          {/* Sliced "layers" legend — a live mini cross-section of the pyramid
+              that highlights the floor you're currently viewing. */}
+          {(view === "floor" || view === "exploded") && (
+            <div
+              style={{
+                border: "1px solid rgba(255,255,255,.1)",
+                borderRadius: 16,
+                background: "linear-gradient(180deg,rgba(200,240,0,.04),#101319)",
+                overflow: "hidden",
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 0" }}>
+                <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".16em" }}>
+                  LAYERS
+                </span>
+                <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>
+                  {view === "exploded" ? "SLICED VIEW" : "YOU ARE HERE"}
+                </span>
+              </div>
+              <div style={{ height: 168, margin: "4px 0" }}>
+                <FloorSliceMini />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 14px 13px" }}>
+                <span style={{ width: 9, height: 9, borderRadius: 3, background: currentFloor?.color ?? "#7D8799" }} />
+                <span style={{ font: "700 13px Inter, sans-serif", color: currentFloor?.color ?? "#AEB5C2" }}>
+                  {currentFloor ? currentFloor.name : "Select a level"}
+                </span>
+              </div>
+            </div>
+          )}
           {currentFloor && (
             <div style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 10 }}>
               {currentFloor.name.toUpperCase()}

@@ -133,6 +133,8 @@ const dayTypeEnum = z.enum(["half", "full"]);
 const scheduleDayInput = z.object({
   date: trimmed(40).optional(),
   type: dayTypeEnum.optional(),
+  start: trimmed(10).optional(),
+  end: trimmed(10).optional(),
 });
 const requestScheduleInput = z.object({
   startDate: trimmed(40).optional(),
@@ -147,11 +149,38 @@ const requestConfigurationInput = z.object({
         day: z.coerce.number().int().positive(),
         date: trimmed(40).optional(),
         type: dayTypeEnum.optional(),
+        start: trimmed(10).optional(),
+        end: trimmed(10).optional(),
       }),
     )
     .max(31)
     .optional(),
   assets: z.array(trimmed(120)).max(40).optional(),
+  solution: z
+    .object({
+      id: trimmed(8),
+      tier: trimmed(20).optional(),
+      label: trimmed(120),
+      rooms: z.array(trimmed(60)).max(12),
+      mapRooms: z.array(trimmed(60)).max(12).optional(),
+      capacity: z.coerce.number().int().nonnegative().optional(),
+      estimatedCost: z.coerce.number().nonnegative().optional(),
+      picks: z
+        .array(
+          z.object({
+            id: trimmed(60),
+            name: trimmed(120),
+            role: trimmed(20),
+            capacity: z.coerce.number().int().nonnegative().optional(),
+            price: z.coerce.number().nonnegative().optional(),
+            kind: trimmed(20).optional(),
+            reason: trimmed(400).optional(),
+          }),
+        )
+        .max(12)
+        .optional(),
+    })
+    .optional(),
   staff: z
     .object({
       count: z.coerce.number().int().nonnegative().max(500),
@@ -495,7 +524,25 @@ export async function createEventFromRequest(requestId: string, reviewedFields?:
 
   const reviewed = reviewedFields ? normalizeIntake(reviewedFields) : null;
   const extraction = request.extractedJson ? eventIntakeSchema.safeParse(request.extractedJson) : null;
-  const ex = reviewed ?? (extraction?.success ? normalizeIntake(extraction.data) : deterministicExtract(request.rawText));
+  const base = reviewed ?? (extraction?.success ? normalizeIntake(extraction.data) : deterministicExtract(request.rawText));
+
+  // Suppress false missing-field warnings when the organizer form already
+  // provided structured data (attendees, schedule) via clarifications.
+  const clarifs = request.clarifications as Record<string, unknown> | null;
+  const structuredAttendees = (clarifs?.configuration as Record<string, unknown> | null)?.attendees;
+  const structuredStartDate = (clarifs?.schedule as Record<string, unknown> | null)?.startDate;
+  const resolvedMissing = base.missingFields.filter((f) => {
+    if (f === "expected guest count" && typeof structuredAttendees === "number" && structuredAttendees > 0) return false;
+    if (f === "date preference" && typeof structuredStartDate === "string" && structuredStartDate) return false;
+    return true;
+  });
+  const guests =
+    base.expectedGuests > 0
+      ? base.expectedGuests
+      : typeof structuredAttendees === "number" && structuredAttendees > 0
+        ? structuredAttendees
+        : base.expectedGuests;
+  const ex = { ...base, expectedGuests: guests, missingFields: resolvedMissing };
 
   const code = await nextEventCode(orgId);
 

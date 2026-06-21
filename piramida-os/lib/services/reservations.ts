@@ -188,6 +188,10 @@ export async function reserveAssetsForEvent(eventId: string) {
             windowEnd: win.availabilityUntil,
           },
         });
+        await tx.asset.update({
+          where: { id: a.id },
+          data: { status: AssetStatus.SOFT_HOLD },
+        });
       }
       if (free.length < required) {
         shortages.push({ category: catName, required, reserved: free.length });
@@ -279,24 +283,32 @@ export async function reserveSerializedAsset(input: unknown) {
   const asset = await prisma.asset.findFirst({ where: { id: data.assetId, orgId, deletedAt: null } });
   if (!asset) throw new AuthError("Asset not found", 404);
 
-  const item = await prisma.assetReservationItem.create({
-    data: {
-      orgId,
-      reservationId: data.reservationId,
-      assetId: data.assetId,
-      categoryId: asset.categoryId,
-      quantity: 1,
-      itemStatus: AssetReservationItemStatus.SOFT_HOLD,
-      windowStart: reservation.setupStart,
-      windowEnd: until,
-    },
-  });
-  await createAuditLog({
-    actorProfileId: actor.id,
-    action: "RESERVE",
-    entityType: "AssetReservationItem",
-    entityId: item.id,
-    summary: `Reserved serialized asset ${asset.name}`,
+  const item = await prisma.$transaction(async (tx) => {
+    const created = await tx.assetReservationItem.create({
+      data: {
+        orgId,
+        reservationId: data.reservationId,
+        assetId: data.assetId,
+        categoryId: asset.categoryId,
+        quantity: 1,
+        itemStatus: AssetReservationItemStatus.SOFT_HOLD,
+        windowStart: reservation.setupStart,
+        windowEnd: until,
+      },
+    });
+    await tx.asset.update({
+      where: { id: data.assetId },
+      data: { status: AssetStatus.SOFT_HOLD },
+    });
+    await createAuditLog({
+      tx,
+      actorProfileId: actor.id,
+      action: "RESERVE",
+      entityType: "AssetReservationItem",
+      entityId: created.id,
+      summary: `Reserved serialized asset ${asset.name}`,
+    });
+    return created;
   });
   return item;
 }
@@ -361,6 +373,12 @@ export async function confirmSoftHold(reservationId: string) {
   assertTransition("AssetReservation", ASSET_RESERVATION_TRANSITIONS, reservation.status, AssetReservationStatus.RESERVED);
 
   const updated = await prisma.$transaction(async (tx) => {
+    // Capture serialized items before the bulk update so we know which assets to advance.
+    const softHoldSerializedItems = await tx.assetReservationItem.findMany({
+      where: { reservationId, assetId: { not: null }, itemStatus: AssetReservationItemStatus.SOFT_HOLD },
+      select: { assetId: true },
+    });
+
     const r = await tx.assetReservation.update({
       where: { id: reservationId },
       data: { status: AssetReservationStatus.RESERVED },
@@ -369,6 +387,16 @@ export async function confirmSoftHold(reservationId: string) {
       where: { reservationId, itemStatus: AssetReservationItemStatus.SOFT_HOLD },
       data: { itemStatus: AssetReservationItemStatus.RESERVED },
     });
+
+    for (const item of softHoldSerializedItems) {
+      if (item.assetId) {
+        await tx.asset.update({
+          where: { id: item.assetId },
+          data: { status: AssetStatus.RESERVED },
+        });
+      }
+    }
+
     await createAuditLog({
       tx,
       actorProfileId: actor.id,
@@ -394,9 +422,11 @@ export async function releaseAssetReservation(id: string) {
   assertTransition("AssetReservation", ASSET_RESERVATION_TRANSITIONS, reservation.status, AssetReservationStatus.RELEASED);
 
   await prisma.$transaction(async (tx) => {
-    // Return bulk quantity to its batch.
+    // Return bulk quantity to its batch, and release serialized assets back to AVAILABLE.
     for (const item of reservation.items) {
-      if (item.batchId && !INACTIVE_ITEM_STATUSES.includes(item.itemStatus)) {
+      if (INACTIVE_ITEM_STATUSES.includes(item.itemStatus)) continue;
+
+      if (item.batchId) {
         const batch = await tx.assetBatch.findUnique({ where: { id: item.batchId } });
         if (batch) {
           await tx.assetBatch.update({
@@ -407,6 +437,13 @@ export async function releaseAssetReservation(id: string) {
             },
           });
         }
+      }
+
+      if (item.assetId) {
+        await tx.asset.update({
+          where: { id: item.assetId },
+          data: { status: AssetStatus.AVAILABLE },
+        });
       }
     }
     await tx.assetReservationItem.updateMany({

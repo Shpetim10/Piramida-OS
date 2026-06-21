@@ -17,16 +17,14 @@ import { requiredText, emailSchema, phoneSchema, trimmed, uuid } from "../valida
 
 // Profiles, roles and permission assignment.
 //
-// Role model (locked 2026-06-20): SUPER_ADMIN, ADMIN, EVENT_MANAGER (absorbs
-// inventory + finance), OPERATIONS_MANAGER, TECHNICIAN, EVENT_ORGANIZER.
+// Role model (locked 2026-06-21): SUPER_ADMIN, ADMIN, EVENT_MANAGER (absorbs
+// all staff capabilities), EVENT_ORGANIZER.
 // Organizers are external Profiles (type ORGANIZER); all other roles are STAFF.
 
 export const STAFF_ROLE_CODES: RoleCode[] = [
   RoleCode.SUPER_ADMIN,
   RoleCode.ADMIN,
   RoleCode.EVENT_MANAGER,
-  RoleCode.OPERATIONS_MANAGER,
-  RoleCode.TECHNICIAN,
 ];
 
 export const ADMIN_ROLE_CODES: RoleCode[] = [RoleCode.SUPER_ADMIN, RoleCode.ADMIN];

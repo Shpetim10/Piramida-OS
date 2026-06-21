@@ -1,91 +1,86 @@
-"use client";
+import { prisma } from "@/lib/db/prisma";
+import { getOrgId } from "@/lib/db/org";
+import { getSetting } from "@/lib/services/settings";
+import { SpacesClient, type SpaceRow, type TwinRoomPosition } from "./SpacesClient";
 
-import { useState } from "react";
-import { ScreenContainer, useMgrViewport } from "@/components/manager/ScreenContainer";
-import { PyramidTwin } from "@/components/manager/twin";
-import { SPACES, SPACES_OCC, roomColor, LIME } from "@/lib/manager/data";
+export const dynamic = "force-dynamic";
 
-const A = LIME;
+const FALLBACK_ROOMS: TwinRoomPosition[] = [
+  { slug: "main-corridor", name: "Main Corridor", x: 236, y: 150, w: 128, h: 48, color: "#7A4BD6" },
+  { slug: "green-room", name: "Green Room", x: 182, y: 218, w: 112, h: 58, color: "#22C55E" },
+  { slug: "yellow-room", name: "Yellow Room", x: 306, y: 218, w: 112, h: 58, color: "#C9A227" },
+  { slug: "blue-room", name: "Blue Room", x: 128, y: 300, w: 158, h: 54, color: "#2A6FDB" },
+  { slug: "orange-room", name: "Orange Room", x: 314, y: 300, w: 158, h: 54, color: "#C0612A" },
+  { slug: "entrance", name: "Entrance", x: 262, y: 360, w: 76, h: 24, color: "#AEB5C2" },
+];
 
-export default function ManagerSpacesPage() {
-  const { isMobile } = useMgrViewport();
-  const [focusRoom, setFocusRoom] = useState("green");
+const ACTIVE_STATUSES = ["SOFT_HOLD", "RESERVED", "PICKED", "IN_TRANSIT", "IN_USE"] as const;
 
-  const spacesCols = isMobile ? "1fr" : "1.15fr 0.85fr";
+function slugify(n: string): string {
+  return n.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
 
-  return (
-    <ScreenContainer>
-      <div style={{ display: "grid", gridTemplateColumns: spacesCols, gap: 18, alignItems: "start" }}>
-        {/* Twin panel */}
-        <div style={{ position: "relative", border: "1px solid rgba(255,255,255,.08)", borderRadius: 22, background: "radial-gradient(700px 460px at 50% 24%,rgba(200,240,0,.06),#0B0E13)", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)", backgroundSize: "34px 34px", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", top: 16, left: 16, padding: "8px 13px", borderRadius: 9, background: "rgba(13,13,18,.6)", border: "1px solid rgba(255,255,255,.08)" }}>
-            <div style={{ font: "600 9px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".1em" }}>PYRAMID TWIN</div>
-            <div style={{ font: "700 12px Inter, sans-serif", color: "#fff", marginTop: 3 }}>Reservations · 18 Jul</div>
-          </div>
-          <div style={{ height: "clamp(400px,46vh,520px)", padding: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <PyramidTwin
-              selected={["green", "blue", "yellow", "common", "entrance"]}
-              layer="occupancy"
-              occ={SPACES_OCC}
-              focus={focusRoom}
-              onRoom={(id) => setFocusRoom(id)}
-            />
-          </div>
-        </div>
+export default async function ManagerSpacesPage() {
+  let spaces: SpaceRow[] = [];
+  let rooms: TwinRoomPosition[] = FALLBACK_ROOMS;
 
-        {/* Space rows */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          {SPACES.map((s) => {
-            const free = s.status === "Free";
-            const isF = focusRoom === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setFocusRoom(s.id)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  textAlign: "left",
-                  padding: 16,
-                  border: `1px solid ${isF ? "rgba(255,255,255,.22)" : "rgba(255,255,255,.07)"}`,
-                  borderRadius: 15,
-                  background: free ? "rgba(21,24,33,.6)" : "#151821",
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
-                <span style={{ width: 10, height: 34, borderRadius: 5, background: roomColor(s.id), flex: "none" }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <span style={{ font: "700 14px Inter, sans-serif", color: "#fff" }}>{s.name}</span>
-                    <span
-                      style={{
-                        font: "700 8px 'JetBrains Mono', monospace",
-                        letterSpacing: ".06em",
-                        color: free ? "#22C55E" : A,
-                        background: free ? "rgba(34,197,94,.14)" : "rgba(200,240,0,.12)",
-                        padding: "4px 7px",
-                        borderRadius: 6,
-                      }}
-                    >
-                      {s.status}
-                    </span>
-                  </div>
-                  <div style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", marginTop: 4 }}>
-                    {s.now} · <span style={{ color: "#AEB5C2" }}>{s.when}</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", flex: "none" }}>
-                  <div style={{ font: "700 13px 'JetBrains Mono', monospace", color: "#fff" }}>{s.cap}</div>
-                  <div style={{ font: "600 8px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".06em", marginTop: 3 }}>CAP · {s.util}% USED</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </ScreenContainer>
-  );
+  try {
+    const orgId = await getOrgId();
+    const [rawSpaces, savedRooms] = await Promise.all([
+      prisma.space.findMany({
+        where: { orgId, deletedAt: null },
+        include: {
+          reservations: {
+            where: {
+              deletedAt: null,
+              status: { in: ACTIVE_STATUSES as unknown as ("SOFT_HOLD" | "RESERVED" | "PICKED" | "IN_TRANSIT" | "IN_USE")[] },
+            },
+            orderBy: { eventStart: "asc" },
+            take: 1,
+            include: {
+              event: { select: { id: true, title: true, expectedGuests: true } },
+            },
+          },
+        },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      }),
+      getSetting<TwinRoomPosition[]>("twin.room_positions").catch(() => null),
+    ]);
+
+    if (savedRooms) rooms = savedRooms;
+
+    spaces = rawSpaces.map((s) => {
+      const res = s.reservations[0] ?? null;
+      const hasReservation = !!res;
+      const event = res?.event ?? null;
+
+      const utilPct =
+        hasReservation && event?.expectedGuests && s.capacity
+          ? Math.min(100, Math.round((event.expectedGuests / s.capacity) * 100))
+          : 0;
+
+      const twinSlug = rooms.find((r) => r.slug === slugify(s.name))?.slug ?? null;
+
+      return {
+        id: s.id,
+        name: s.name,
+        capacity: s.capacity ?? null,
+        reservationStatus: hasReservation ? "Reserved" : "Free",
+        reservationEvent: event?.title ?? "No reservation",
+        reservationWhen: res?.eventStart
+          ? new Date(res.eventStart).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "Available",
+        utilPct,
+        twinSlug,
+      };
+    });
+  } catch {
+    // Not authenticated or DB unavailable — show empty
+  }
+
+  return <SpacesClient spaces={spaces} rooms={rooms} />;
 }

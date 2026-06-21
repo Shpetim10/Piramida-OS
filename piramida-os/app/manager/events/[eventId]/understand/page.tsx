@@ -1,5 +1,7 @@
 import { ScreenContainer } from "@/components/manager/ScreenContainer";
+import { PipelineStepNav } from "@/components/manager/PipelineStepNav";
 import { DnaRadar } from "@/components/manager/twin";
+import { ManagerStatusPanel } from "@/components/manager/ManagerStatusPanel";
 import { getEvent } from "@/lib/services/events";
 import { computeDNAScores } from "@/lib/services/planning";
 import { narratePlan } from "@/lib/ai/explainer";
@@ -50,6 +52,8 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
   const dnaDims = dnaScores.map((d) => ({ k: d.label, s: d.shortLabel, v: d.value }));
 
   return (
+    <>
+      <PipelineStepNav eventId={eventId} />
     <ScreenContainer>
       {!event && (
         <div style={{ color: "#EF4444", padding: 24, border: "1px solid rgba(239,68,68,.3)", borderRadius: 14, background: "rgba(239,68,68,.05)" }}>
@@ -60,6 +64,12 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
         <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.9fr", gap: 18, alignItems: "start" }}>
           {/* LEFT column */}
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {/* Status control */}
+            <div>
+              <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 10 }}>STATUS CONTROL</div>
+              <ManagerStatusPanel eventId={event.id} currentStatus={event.status} />
+            </div>
+
             {/* Event summary */}
             <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, background: "#151821", padding: 22 }}>
               <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 14 }}>EVENT SUMMARY</div>
@@ -140,5 +150,6 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
         </div>
       )}
     </ScreenContainer>
+    </>
   );
 }

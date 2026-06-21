@@ -61,7 +61,13 @@ export function EventsView({ events }: { events: EventRow[] }) {
         ) : (
           <div style={{ border: "1px solid rgba(255,255,255,.07)", borderRadius: 18, overflow: "hidden", background: "#151821" }}>
             {events.map((e) => (
-              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
+              <Link
+                key={e.id}
+                href={`/organizer/events/${e.id}`}
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,.05)", textDecoration: "none", transition: "background .15s" }}
+                onMouseEnter={(ev) => (ev.currentTarget.style.background = "rgba(255,255,255,.03)")}
+                onMouseLeave={(ev) => (ev.currentTarget.style.background = "")}
+              >
                 <div style={{ width: 10, height: 10, borderRadius: 3, flex: "none", background: e.color }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: "700 15px Inter, sans-serif", color: "#fff" }}>{e.title}</div>
@@ -80,7 +86,8 @@ export function EventsView({ events }: { events: EventRow[] }) {
                 >
                   {e.status}
                 </span>
-              </div>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4a5568" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+              </Link>
             ))}
           </div>
         )}

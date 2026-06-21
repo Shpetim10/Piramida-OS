@@ -78,8 +78,6 @@ async function main() {
     SUPER_ADMIN: "Super Admin",
     ADMIN: "Admin",
     EVENT_MANAGER: "Event Manager",
-    OPERATIONS_MANAGER: "Operations Manager",
-    TECHNICIAN: "Technician",
     EVENT_ORGANIZER: "Event Organizer",
   };
   for (const code of Object.keys(roleLabels) as RoleCode[]) {
@@ -101,8 +99,6 @@ async function main() {
   const staff: Array<{ key: string; name: string; email: string; role: RoleCode }> = [
     { key: "admin", name: "Ada Admin", email: "admin@pyramid.al", role: "ADMIN" },
     { key: "event-mgr", name: "Erion Event", email: "events@pyramid.al", role: "EVENT_MANAGER" },
-    { key: "ops-mgr", name: "Olta Ops", email: "ops@pyramid.al", role: "OPERATIONS_MANAGER" },
-    { key: "tech", name: "Teo Tech", email: "tech@pyramid.al", role: "TECHNICIAN" },
   ];
   for (const s of staff) {
     const profileId = sid(`profile:${s.key}`);
@@ -832,7 +828,7 @@ async function main() {
           id: sid(`checkin:${g.key}`),
           orgId: ORG_ID,
           ticketId,
-          scannedByProfileId: sid("profile:tech"),
+          scannedByProfileId: sid("profile:event-mgr"),
           gateLabel: "Entrance",
         },
       });

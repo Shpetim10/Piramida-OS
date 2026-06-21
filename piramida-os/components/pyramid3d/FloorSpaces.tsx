@@ -17,6 +17,25 @@ const mutedColor = (hex: string) => new Color(hex).lerp(new Color("#c7cdd6"), 0.
 /** Darken a brand colour toward slate (door panels, recesses). */
 const darken = (hex: string, amt: number) => new Color(hex).lerp(new Color("#1c2128"), amt).getStyle();
 
+/** Recommend mode: non-suggested rooms drop ALL hue and read as plain grey→white
+ *  buildings (brighter originals stay nearer white). */
+const greyscale = (hex: string) => {
+  const c = new Color(hex);
+  const lum = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+  const g = 0.74 + lum * 0.2; // light grey → near white
+  return new Color(g, g, g).getStyle();
+};
+
+/** Logo palette ramp — yellow → lime → green — that ONLY the recommended rooms
+ *  wear, so the suggestions read as one cohesive Pyramid OS-coloured set. */
+const REC_RAMP = [new Color("#ede60b"), new Color("#c8f000"), new Color("#5fc24a")];
+const rampColor = (i: number, n: number): string => {
+  if (n <= 1) return "#c8f000"; // a single suggestion → brand lime
+  const t = (i / (n - 1)) * (REC_RAMP.length - 1);
+  const k = Math.min(REC_RAMP.length - 2, Math.floor(t));
+  return REC_RAMP[k].clone().lerp(REC_RAMP[k + 1], t - k).getStyle();
+};
+
 /** Tiny seeded PRNG so the park tree-ring is deterministic across renders. */
 function mulberry32(seed: number) {
   return function () {
@@ -269,17 +288,25 @@ export function FloorSpaces({
   interactive = true,
   highlight,
   liveEvents,
+  recommendMode = false,
 }: {
   floorId: number | "park";
   interactive?: boolean;
   highlight?: Set<string>;
   /** live events keyed by pyramid room id — rooms in this map get a LIVE pin */
   liveEvents?: Map<string, LiveEventMarker>;
+  /** when on, every room NOT in `highlight` renders muted grey so only the
+   *  recommended rooms read as live — even otherwise-bookable rooms. */
+  recommendMode?: boolean;
 }) {
   const floor = getFloor(floorId);
   const selectSpaceRaw = usePyramid((s) => s.selectSpace);
   const selectSpace = interactive ? selectSpaceRaw : () => {};
   if (!floor) return null;
+
+  // Recommended rooms on this floor, in layout order — each gets a colour from
+  // the yellow→green logo ramp so the suggested set reads as one palette.
+  const recIds = floor.spaces.filter((s) => highlight?.has(s.id)).map((s) => s.id);
 
   return (
     <group>
@@ -313,10 +340,11 @@ export function FloorSpaces({
           floor.spaces.length > DENSE_FLOOR && i % 2 === 1 && !space.stairs && !space.glassFront;
         const recommended = !!highlight?.has(space.id);
         const live = liveEvents?.get(space.id);
+        const recColor = recommended ? rampColor(recIds.indexOf(space.id), recIds.length) : ACCENT;
         return space.stairs ? (
-          <StairsSpace key={space.id} space={space} index={i} interactive={interactive} recommended={recommended} live={live} onSelect={() => selectSpace(space.id)} />
+          <StairsSpace key={space.id} space={space} index={i} interactive={interactive} recommended={recommended} recommendMode={recommendMode} recColor={recColor} live={live} onSelect={() => selectSpace(space.id)} />
         ) : (
-          <SpaceCube key={space.id} space={space} index={i} lift={lifted ? STORY : 0} interactive={interactive} recommended={recommended} live={live} onSelect={() => selectSpace(space.id)} />
+          <SpaceCube key={space.id} space={space} index={i} lift={lifted ? STORY : 0} interactive={interactive} recommended={recommended} recommendMode={recommendMode} recColor={recColor} live={live} onSelect={() => selectSpace(space.id)} />
         );
       })}
     </group>
@@ -518,7 +546,7 @@ function CubeFacade({ w, h, d, color, door = true }: { w: number; h: number; d: 
 
 /** Floor-0 staircase space — a clean grey climbable flight; click to open the
  *  stair-talk (50 people, screen, no chairs). Modelled after the reference. */
-function StairsSpace({ space, onSelect, index = 0, interactive = true, live }: { space: EventSpace; onSelect: () => void; index?: number; interactive?: boolean; recommended?: boolean; live?: LiveEventMarker }) {
+function StairsSpace({ space, onSelect, index = 0, interactive = true, recommended = false, recommendMode = false, recColor = ACCENT, live }: { space: EventSpace; onSelect: () => void; index?: number; interactive?: boolean; recommended?: boolean; recommendMode?: boolean; recColor?: string; live?: LiveEventMarker }) {
   const [hover, setHover] = useState(false);
   const rad = (space.angle * Math.PI) / 180;
   const x = Math.cos(rad) * space.radius;
@@ -527,6 +555,11 @@ function StairsSpace({ space, onSelect, index = 0, interactive = true, live }: {
   const rise = 0.17;
   const tread = 0.3;
   const width = space.size[0];
+  // In recommend mode only highlighted rooms read as live AND are clickable;
+  // outside it, fall back to the room's own bookable state.
+  const heroVivid = recommendMode ? recommended : !!space.eventable;
+  const canSelect = recommendMode ? recommended : true;
+  const glow = recommendMode ? recColor : ACCENT;
 
   return (
     <group position={[x, 0, z]} rotation={[0, faceRotY(space.angle) + Math.PI, 0]}>
@@ -534,12 +567,12 @@ function StairsSpace({ space, onSelect, index = 0, interactive = true, live }: {
       <group
         onClick={(e) => {
           e.stopPropagation();
-          onSelect();
+          if (canSelect) onSelect();
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHover(true);
-          if (interactive) document.body.style.cursor = "pointer";
+          if (interactive) document.body.style.cursor = canSelect ? "pointer" : "not-allowed";
         }}
         onPointerOut={() => {
           setHover(false);
@@ -553,13 +586,19 @@ function StairsSpace({ space, onSelect, index = 0, interactive = true, live }: {
           return (
             <mesh key={s} position={[0, h / 2, zs]} castShadow receiveShadow>
               <boxGeometry args={[width, h, tread]} />
-              <meshStandardMaterial color={hover ? "#cdd3db" : "#bcc3cc"} roughness={0.95} metalness={0.04} />
+              <meshStandardMaterial
+                color={recommended ? glow : hover ? "#cdd3db" : "#bcc3cc"}
+                emissive={recommended ? glow : "#000000"}
+                emissiveIntensity={recommended ? (hover ? 0.5 : 0.32) : 0}
+                roughness={0.95}
+                metalness={0.04}
+              />
             </mesh>
           );
         })}
       </group>
 
-      <SpacePin space={space} bookable={!!space.eventable} y={rise * steps + 0.6} onSelect={onSelect} />
+      <SpacePin space={space} bookable={heroVivid} y={rise * steps + 0.6} onSelect={onSelect} />
       {live && <LiveMarker ev={live} y={rise * steps + 1.62} />}
       </Rise>
     </group>
@@ -568,12 +607,24 @@ function StairsSpace({ space, onSelect, index = 0, interactive = true, live }: {
 
 /** A realistic solid tenant block. Sits flat on the floor, or — when `lift` is
  *  set — floats on an upper tier carried by slim columns (two-story floors). */
-function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, recommended = false, live }: { space: EventSpace; onSelect: () => void; lift?: number; index?: number; interactive?: boolean; recommended?: boolean; live?: LiveEventMarker }) {
+function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, recommended = false, recommendMode = false, recColor = ACCENT, live }: { space: EventSpace; onSelect: () => void; lift?: number; index?: number; interactive?: boolean; recommended?: boolean; recommendMode?: boolean; recColor?: string; live?: LiveEventMarker }) {
   const [hover, setHover] = useState(false);
   const rad = (space.angle * Math.PI) / 180;
   const x = Math.cos(rad) * space.radius;
   const z = Math.sin(rad) * space.radius;
   const bookable = !!space.eventable;
+  // In recommend mode the eye must land only on the recommended rooms: every
+  // other room (bookable or tenant) drops its colour and becomes an inert grey
+  // building. Outside recommend mode this is exactly the old `bookable` behaviour.
+  const heroVivid = recommendMode ? recommended : bookable;
+  // Only recommended rooms can be opened in recommend mode.
+  const canSelect = recommendMode ? recommended : bookable;
+  // Recommended rooms wear the yellow→green logo ramp (recommend mode only);
+  // elsewhere the existing uniform lime is preserved so explore looks identical.
+  const hero = recommendMode ? recColor : ACCENT;
+  // Non-hero rooms: hard greyscale in recommend mode, the softer tenant mute
+  // (which keeps a hint of hue) everywhere else — so explore is unaffected.
+  const dullColor = recommendMode ? greyscale(space.color) : mutedColor(space.color);
 
   const [w, h, d] = space.size;
   // Local Y of the floor (world y = 0) relative to this group's centre.
@@ -609,12 +660,12 @@ function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, r
       <group
         onClick={(e) => {
           e.stopPropagation();
-          if (bookable) onSelect();
+          if (canSelect) onSelect();
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHover(true);
-          if (interactive) document.body.style.cursor = bookable ? "pointer" : "not-allowed";
+          if (interactive) document.body.style.cursor = canSelect ? "pointer" : "not-allowed";
         }}
         onPointerOut={() => {
           setHover(false);
@@ -622,34 +673,35 @@ function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, r
         }}
       >
         <RoundedBox args={space.size} radius={0.1} smoothness={5} castShadow receiveShadow>
-          {bookable ? (
-            // HERO: vivid, saturated, glossy, with an emissive glow that lifts on hover.
-            // AI-recommended rooms glow in Pyramid OS lime so they read as "available
-            // & suggested" against the other (neutral-coloured) bookable rooms.
+          {heroVivid ? (
+            // HERO: vivid, glossy, with an emissive glow that lifts on hover.
+            // Recommended rooms wear the yellow→green logo ramp so the suggested
+            // set reads as one Pyramid OS-coloured palette.
             <meshStandardMaterial
-              color={recommended ? ACCENT : space.color}
+              color={recommended ? hero : space.color}
               roughness={0.34}
               metalness={0.14}
-              emissive={recommended ? ACCENT : space.color}
+              emissive={recommended ? hero : space.color}
               emissiveIntensity={recommended ? (hover ? 0.7 : 0.5) : hover ? 0.42 : 0.22}
             />
           ) : (
-            // CONTEXT: desaturated + lightened, fully opaque so it reads as a
-            // quiet building yet recedes against the bright bookable cubes.
-            <meshStandardMaterial color={mutedColor(space.color)} roughness={0.82} metalness={0.02} />
+            // CONTEXT: in recommend mode a colourless grey→white building that
+            // recedes; elsewhere the softer tenant mute (unchanged for explore).
+            <meshStandardMaterial color={dullColor} roughness={0.82} metalness={0.02} />
           )}
         </RoundedBox>
 
         {/* cabin facade — door toward the atrium + windows on the other walls */}
         <CubeFacade w={w} h={h} d={d} color={space.color} door={!space.glassFront} />
 
-        {/* faint lime accent rim hugging the base of bookable blocks — draws the eye */}
-        {bookable && (
+        {/* faint lime accent rim hugging the base of hero blocks — draws the eye.
+            In recommend mode only the recommended rooms keep this ring. */}
+        {heroVivid && (
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -h / 2 + 0.012, 0]}>
             <ringGeometry args={[Math.max(w, d) / 2 + 0.04, Math.max(w, d) / 2 + 0.15, 56]} />
             <meshStandardMaterial
-              color={ACCENT}
-              emissive={ACCENT}
+              color={recommended ? hero : ACCENT}
+              emissive={recommended ? hero : ACCENT}
               emissiveIntensity={recommended ? 1.2 : hover ? 1.0 : 0.65}
               transparent
               opacity={recommended ? 0.95 : hover ? 0.9 : 0.6}
@@ -667,7 +719,7 @@ function SpaceCube({ space, onSelect, lift = 0, index = 0, interactive = true, r
         )}
       </group>
 
-      <SpacePin space={space} bookable={bookable} y={space.size[1] / 2 + 0.6} onSelect={onSelect} />
+      <SpacePin space={space} bookable={heroVivid} y={space.size[1] / 2 + 0.6} onSelect={onSelect} />
       {live && <LiveMarker ev={live} y={space.size[1] / 2 + 1.62} />}
       </Rise>
     </group>

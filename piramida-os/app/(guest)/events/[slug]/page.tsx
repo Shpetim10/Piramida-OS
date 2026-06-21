@@ -6,6 +6,7 @@ import { useViewport } from "@/lib/useViewport";
 import { PyramidTwin } from "@/lib/PyramidTwin";
 import { recRooms, ROOM_NAME } from "@/lib/data";
 import type { LiveEventMarker } from "@/lib/services/events";
+import { getRegistration, saveRegistration } from "@/lib/guest-registrations";
 
 const LIME = "#C8F000";
 
@@ -78,6 +79,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
     return () => { active = false; };
   }, []);
 
+  // Restore prior registration from cookie on mount.
+  useEffect(() => {
+    const saved = getRegistration(slug);
+    if (saved) setRegistered(saved);
+  }, [slug]);
+
   useEffect(() => {
     fetch(`/api/public/events/${encodeURIComponent(slug)}`)
       .then((r) => {
@@ -108,7 +115,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
       });
       const data = await res.json() as { status?: string; ticketToken?: string | null; error?: string };
       if (!res.ok) { setFormError(data.error ?? "Registration failed."); return; }
-      setRegistered({ status: data.status ?? "CONFIRMED", ticketToken: data.ticketToken ?? null });
+      const entry = { status: data.status ?? "CONFIRMED", ticketToken: data.ticketToken ?? null };
+      saveRegistration(slug, entry);
+      setRegistered(entry);
     } catch {
       setFormError("Network error — please try again.");
     } finally {

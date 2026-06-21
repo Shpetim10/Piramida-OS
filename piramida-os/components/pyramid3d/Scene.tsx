@@ -107,7 +107,7 @@ function ViewIntro({ children, rise = 0.5 }: { children: React.ReactNode; rise?:
   );
 }
 
-function Content({ interactive, highlight, liveEvents, bare }: { interactive: boolean; highlight?: Set<string>; liveEvents?: Map<string, LiveEventMarker>; bare?: boolean }) {
+function Content({ interactive, highlight, liveEvents, recommendMode, bare }: { interactive: boolean; highlight?: Set<string>; liveEvents?: Map<string, LiveEventMarker>; recommendMode?: boolean; bare?: boolean }) {
   const view = usePyramid((s) => s.view);
   const floorId = usePyramid((s) => s.floorId);
   const spaceId = usePyramid((s) => s.spaceId);
@@ -139,7 +139,7 @@ function Content({ interactive, highlight, liveEvents, bare }: { interactive: bo
   if (view === "floor" && floorId != null)
     return (
       <group key={`floor:${floorId}`}>
-        <FloorSpaces floorId={floorId} interactive={interactive} highlight={highlight} liveEvents={liveEvents} />
+        <FloorSpaces floorId={floorId} interactive={interactive} highlight={highlight} liveEvents={liveEvents} recommendMode={recommendMode} />
       </group>
     );
 
@@ -170,12 +170,14 @@ export interface SceneProps {
   highlight?: string[];
   /** Live events (from the DB timeline) to mark with LIVE pins on the floor view. */
   liveEvents?: LiveEventMarker[];
+  /** Recommendation mode: grey every non-highlighted room on the floor view. */
+  recommendMode?: boolean;
   /** Hero mode: lone pyramid (no city/trees), pure-black backdrop, lime-tinted
    *  lighting and a closer, larger framing. */
   bare?: boolean;
 }
 
-export default function Scene({ interactive = true, autoRotate = false, highlight, liveEvents, bare = false }: SceneProps) {
+export default function Scene({ interactive = true, autoRotate = false, highlight, liveEvents, recommendMode = false, bare = false }: SceneProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const back = usePyramid((s) => s.back);
   const view = usePyramid((s) => s.view);
@@ -193,25 +195,34 @@ export default function Scene({ interactive = true, autoRotate = false, highligh
   const daylight = floorView;
   const heroExterior = exteriorView && bare;
 
-  const bg = floorView ? "#edf1ec" : heroExterior ? "#0d0d12" : exteriorView ? "#1e222a" : "#0d0d12";
+  // The plain (interactive/explore) exterior used to be a brighter charcoal; pull
+  // it down toward the home hero's near-black so the whole-pyramid view matches.
+  const bg = floorView ? "#edf1ec" : heroExterior ? "#0d0d12" : exteriorView ? "#101319" : "#0d0d12";
 
   return (
     <Canvas
       shadows
       camera={{ position: [22, 14, 22], fov: 45 }}
       dpr={[1, 2]}
-      onPointerMissed={() => interactive && view !== "exterior" && back()}
+      onPointerMissed={() => {
+        // Clicking empty space backs out one level. In recommend mode the floor
+        // is locked: a room still closes back to its floor, but the floor itself
+        // can't pop out to the exterior (which would expose other floors).
+        if (!interactive) return;
+        if (view === "interior") back();
+        else if (!recommendMode && view !== "exterior") back();
+      }}
     >
       <color attach="background" args={[bg]} />
-      <fog attach="fog" args={[bg, heroExterior ? 22 : floorView ? 46 : 30, heroExterior ? 60 : floorView ? 120 : exteriorView ? 95 : 85]} />
+      <fog attach="fog" args={[bg, heroExterior ? 22 : floorView ? 46 : exteriorView ? 26 : 30, heroExterior ? 60 : floorView ? 120 : exteriorView ? 72 : 85]} />
 
       {/* Warm neutral key light + soft sky so the real concrete reads white/grey;
           the lime comes from the building's strips + the accent rim below. */}
       <hemisphereLight
         args={[
-          daylight ? "#ffffff" : heroExterior ? "#eef3e6" : "#dce8ff",
-          daylight ? "#cdd8c8" : heroExterior ? "#0a0b08" : "#1a1f2b",
-          daylight ? 1.45 : heroExterior ? 1.0 : 1.05,
+          daylight ? "#ffffff" : heroExterior ? "#eef3e6" : exteriorView ? "#dde6f2" : "#dce8ff",
+          daylight ? "#cdd8c8" : heroExterior ? "#0a0b08" : exteriorView ? "#0a0c10" : "#1a1f2b",
+          daylight ? 1.45 : heroExterior ? 1.0 : exteriorView ? 0.95 : 1.05,
         ]}
       />
       <directionalLight
@@ -224,14 +235,16 @@ export default function Scene({ interactive = true, autoRotate = false, highligh
         shadow-camera-top={20}
         shadow-camera-bottom={-20}
       />
-      <ambientLight intensity={daylight ? 0.8 : heroExterior ? 0.5 : 0.42} />
+      <ambientLight intensity={daylight ? 0.8 : heroExterior ? 0.5 : exteriorView ? 0.4 : 0.42} />
 
       {/* lime accent rim from the opposite side — paints the logo's green-yellow
-          onto the pyramid's shaded face. Hero only. */}
-      {heroExterior && <directionalLight position={[-13, 6, -9]} intensity={0.42} color="#c8f000" />}
+          onto the pyramid's shaded face. Hero + the (now darker) explore exterior. */}
+      {(heroExterior || exteriorView) && (
+        <directionalLight position={[-13, 6, -9]} intensity={heroExterior ? 0.42 : 0.32} color="#c8f000" />
+      )}
 
       <Suspense fallback={null}>
-        <Content interactive={interactive} highlight={highlightSet} liveEvents={liveMap} bare={bare} />
+        <Content interactive={interactive} highlight={highlightSet} liveEvents={liveMap} recommendMode={recommendMode} bare={bare} />
       </Suspense>
 
       <ContactShadows

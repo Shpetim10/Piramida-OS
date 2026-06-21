@@ -36,9 +36,15 @@ export default async function ManagerEventsPage() {
   return (
     <ScreenContainer>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-        <p style={{ font: "400 14px/1.5 Inter, sans-serif", color: "#AEB5C2", margin: 0, maxWidth: 480 }}>
-          Every event in the Pyramid, with its current position in the operational pipeline and live readiness.
-        </p>
+        <div>
+          <p style={{ font: "400 14px/1.5 Inter, sans-serif", color: "#AEB5C2", margin: "0 0 10px", maxWidth: 480 }}>
+            Every event in the Pyramid, with its current position in the operational pipeline and live readiness.
+          </p>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 8, border: "1px solid rgba(200,240,0,.25)", background: "rgba(200,240,0,.06)" }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C8F000" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+            <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".08em" }}>Press a button to generate plan</span>
+          </div>
+        </div>
         <div style={{ display: "flex", gap: 18 }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ font: "800 22px/1 Inter, sans-serif", color: "#fff" }}>{events.length}</div>
@@ -68,11 +74,11 @@ export default async function ManagerEventsPage() {
           {events.map((e) => {
             const stageColor = STAGE_COLOR[e.status] ?? "#7D8799";
             const isCompleted = ["COMPLETED", "ARCHIVED", "CANCELLED"].includes(e.status);
-            const score = e.feasibilityScore != null ? Math.round(e.feasibilityScore * 100) : null;
+            const score = e.feasibilityScore != null ? Math.round(e.feasibilityScore) : null;
             return (
               <Link
                 key={e.id}
-                href={`/manager/events/${e.id}/understand`}
+                href={`/manager/events/${e.id}`}
                 style={{ display: "grid", gridTemplateColumns: "2fr 1fr 0.7fr 1fr 1fr", gap: 12, alignItems: "center", padding: "15px 20px", borderBottom: "1px solid rgba(255,255,255,.05)", cursor: "pointer", textDecoration: "none" }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>

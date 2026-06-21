@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AdminScreen, useAdminViewport } from "@/components/admin/AdminScreen";
 import { ASSIGNABLE_ROLES } from "@/lib/admin/data";
 
@@ -25,23 +26,71 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  appearance: "none",
+  WebkitAppearance: "none",
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' stroke='%237D8799' stroke-width='2' fill='none' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 12px center",
+  paddingRight: 36,
+  border: "1px solid rgba(200,240,0,.3)",
+  cursor: "pointer",
+};
+
 export function StaffForm({
   mode,
+  profileId,
   initialName = "",
   initialEmail = "",
-  initialRole = "Event Manager",
+  initialRole = "EVENT_MANAGER",
 }: {
   mode: "create" | "edit";
+  profileId?: string;
   initialName?: string;
   initialEmail?: string;
   initialRole?: string;
 }) {
   const { isMobile } = useAdminViewport();
+  const router = useRouter();
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
-  const [role, setRole] = useState(initialRole);
+  const [roleCode, setRoleCode] = useState(initialRole);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isEdit = mode === "edit";
+
+  async function handleSubmit() {
+    setError(null);
+    if (!name.trim()) { setError("Full name is required."); return; }
+    if (!email.trim()) { setError("Email is required."); return; }
+
+    setSaving(true);
+    try {
+      const url = isEdit && profileId ? `/api/admin/staff/${profileId}` : "/api/admin/staff";
+      const method = isEdit ? "PATCH" : "POST";
+      const body = isEdit
+        ? JSON.stringify({ fullName: name.trim() })
+        : JSON.stringify({ fullName: name.trim(), email: email.trim(), roleCode });
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error ?? `Error ${res.status}`);
+        return;
+      }
+      router.push("/admin/users");
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <AdminScreen>
@@ -57,43 +106,47 @@ export function StaffForm({
           {isEdit ? `Edit ${initialName || "staff account"}` : "New staff account"}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: error ? 12 : 18 }}>
           <div>
             <div style={fieldLabel}>FULL NAME</div>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Arben Doci" style={inputStyle} />
           </div>
           <div>
             <div style={fieldLabel}>EMAIL</div>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@pyramid.al" style={inputStyle} />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@pyramid.al"
+              readOnly={isEdit}
+              style={{ ...inputStyle, ...(isEdit ? { opacity: 0.6, cursor: "not-allowed" } : {}) }}
+            />
           </div>
           <div>
             <div style={fieldLabel}>ROLE</div>
-            <div style={{ padding: "12px 13px", border: "1px solid rgba(200,240,0,.3)", borderRadius: 10, background: "#0F1218", font: "600 13px Inter, sans-serif", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              {role}
-              <svg width="14" height="14" viewBox="0 0 24 24" stroke="#7D8799" strokeWidth="2" fill="none" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
-            </div>
+            <select value={roleCode} onChange={(e) => setRoleCode(e.target.value)} style={selectStyle}>
+              {ASSIGNABLE_ROLES.map((r) => (
+                <option key={r.code} value={r.code} style={{ background: "#0F1218" }}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 }}>
-          {ASSIGNABLE_ROLES.map((r) => {
-            const active = role === r;
-            return (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                style={{ padding: "8px 13px", borderRadius: 9, border: `1px solid ${active ? A : "rgba(255,255,255,.12)"}`, background: active ? "rgba(200,240,0,.08)" : "transparent", color: active ? "#fff" : "#AEB5C2", font: "600 12px Inter, sans-serif", cursor: "pointer" }}
-              >
-                {r}
-              </button>
-            );
-          })}
-        </div>
+        {error && (
+          <div style={{ font: "500 12px Inter, sans-serif", color: "#EF4444", marginBottom: 14, padding: "10px 13px", borderRadius: 9, background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.2)" }}>
+            {error}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 10 }}>
-          <Link href="/admin/users" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", border: "none", borderRadius: 11, background: A, color: "#0D0D12", font: "700 13px Inter, sans-serif", cursor: "pointer", textDecoration: "none" }}>
-            {isEdit ? "Save changes" : "Create account"}
-          </Link>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", border: "none", borderRadius: 11, background: saving ? "rgba(200,240,0,.5)" : A, color: "#0D0D12", font: "700 13px Inter, sans-serif", cursor: saving ? "not-allowed" : "pointer" }}
+          >
+            {saving ? "Creating…" : isEdit ? "Save changes" : "Create account"}
+          </button>
           <Link href="/admin/users" style={{ padding: "12px 18px", border: "1px solid rgba(255,255,255,.12)", borderRadius: 11, background: "transparent", color: "#AEB5C2", font: "600 13px Inter, sans-serif", cursor: "pointer", textDecoration: "none" }}>
             Cancel
           </Link>

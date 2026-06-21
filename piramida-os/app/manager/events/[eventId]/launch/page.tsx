@@ -1,5 +1,6 @@
 import { getLaunchReadiness } from "@/lib/services/launch-readiness";
 import { getSetting } from "@/lib/services/settings";
+import { PipelineStepNav } from "@/components/manager/PipelineStepNav";
 import { LaunchClient } from "./LaunchClient";
 
 export default async function Page({ params }: { params: Promise<{ eventId: string }> }) {
@@ -12,17 +13,23 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
 
   if (!readiness) {
     return (
-      <div style={{ padding: 32, color: "#EF4444", font: "500 14px Inter, sans-serif" }}>
-        Event not found or planning not yet run. Generate a plan first.
-      </div>
+      <>
+        <PipelineStepNav eventId={eventId} />
+        <div style={{ padding: 32, color: "#EF4444", font: "500 14px Inter, sans-serif" }}>
+          Event not found or planning not yet run. Generate a plan first.
+        </div>
+      </>
     );
   }
 
   return (
-    <LaunchClient
-      eventId={eventId}
-      readiness={readiness}
-      gateNotes={gateNotes ?? {}}
-    />
+    <>
+      <PipelineStepNav eventId={eventId} />
+      <LaunchClient
+        eventId={eventId}
+        readiness={readiness}
+        gateNotes={gateNotes ?? {}}
+      />
+    </>
   );
 }

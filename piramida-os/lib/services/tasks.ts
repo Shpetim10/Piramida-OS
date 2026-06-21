@@ -117,6 +117,18 @@ const DEFAULT_TASK_GROUPS: Array<{ title: string; description: string; priority:
   { title: "Return equipment to storage", description: "Return and inspect all reserved assets.", priority: TaskPriority.LOW },
 ];
 
+export async function listAllOrgTasks() {
+  await requirePermission("tasks.manage");
+  const orgId = await getOrgId();
+  return prisma.task.findMany({
+    where: { orgId, deletedAt: null },
+    include: {
+      event: { select: { id: true, title: true } },
+    },
+    orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+  });
+}
+
 /** Seed the standard run-of-show task groups for an event (idempotent by title). */
 export async function generateDefaultEventTasks(eventId: string) {
   const actor = await requirePermission("tasks.manage");

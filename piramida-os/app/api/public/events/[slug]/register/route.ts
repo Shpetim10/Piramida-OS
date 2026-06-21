@@ -22,7 +22,7 @@ export async function POST(
       {
         status: result.registration.status,
         ticketToken: result.ticket?.token ?? null,
-        emailSent: false,
+        emailSent: !!result.ticket,
       },
       { status: 201 },
     );

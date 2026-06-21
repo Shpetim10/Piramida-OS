@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { PyramidTwin } from "@/lib/PyramidTwin";
-import type { LiveEventMarker } from "@/lib/services/events";
+import { useState } from "react";
+import { PyramidMap } from "@/components/pyramid3d/PyramidMap";
 import { useViewport } from "@/lib/useViewport";
 import { useTasksStore, type NewTaskCard } from "@/lib/manager/tasks-store";
 import {
@@ -15,17 +14,22 @@ import {
   fmt,
   MAX_DURATION_DAYS,
   MIN_DURATION_DAYS,
-  recRooms,
-  ROOM_NAME,
-  ROOM_PRICE,
-  ROOM_REASON,
-  ROOM_ROLE,
+  recommendSolutions,
+  type Solution,
+  type SolutionRole,
   SERVICES,
   STAFF_COST_PER_PERSON,
   suggestedStaff,
+  VAT_RATE,
 } from "@/lib/data";
 
-type Stage = "prompt" | "result" | "sent";
+type Stage = "prompt" | "choose" | "result" | "sent";
+
+const ROLE_CHIP: Record<SolutionRole, string> = {
+  keynote: "Keynote",
+  breakout: "Breakout",
+  support: "Support",
+};
 
 type Extraction = {
   eventType: string;
@@ -55,7 +59,11 @@ type AiInfo = {
 type QA = { question: string; answer: string };
 type GapField = "attendees" | "schedule";
 type Assets = Record<string, number>;
-type EventDay = { date: string; type: DayType };
+type EventDay = { date: string; type: DayType; start: string; end: string };
+
+const DEFAULT_START = "09:00";
+const DEFAULT_END = "17:00";
+const newDay = (): EventDay => ({ date: "", type: "full", start: DEFAULT_START, end: DEFAULT_END });
 
 // The earliest / latest scheduled dates. Days may be non-contiguous, so the
 // window is derived from whichever dates the organizer has filled in.
@@ -125,8 +133,9 @@ export default function CreateEventPage() {
 
   const [stage, setStage] = useState<Stage>("prompt");
   const [text, setText] = useState("");
+  const [eventName, setEventName] = useState("");
   const [attendees, setAttendees] = useState(180);
-  const [days, setDays] = useState<EventDay[]>([{ date: "", type: "full" }]);
+  const [days, setDays] = useState<EventDay[]>([newDay()]);
   const [assets, setAssets] = useState<Assets>(() => Object.fromEntries(ASSETS.map((a) => [a.id, 0])));
   const [services, setServices] = useState<string[]>(["catering", "registration"]);
   const [staffEnabled, setStaffEnabled] = useState(false);
@@ -135,22 +144,13 @@ export default function CreateEventPage() {
   const [isPublic, setIsPublic] = useState(false);
   const [eventType, setEventType] = useState("event");
   const [gaps, setGaps] = useState<Set<GapField>>(new Set());
+  // The two proposed placements + the one the organizer picked.
+  const [solutions, setSolutions] = useState<Solution[]>([]);
+  const [selectedSolution, setSelectedSolution] = useState<Solution | null>(null);
 
   // Run-of-show tasks generated for the manager board on plan confirmation.
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksAdded, setTasksAdded] = useState<number | null>(null);
-
-  // Live events (DB timeline) to mark on the 3D twin so the organizer sees what
-  // is happening in the building right now. Read-only; failures degrade to none.
-  const [liveEvents, setLiveEvents] = useState<LiveEventMarker[]>([]);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/public/live-events")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: LiveEventMarker[]) => { if (active) setLiveEvents(Array.isArray(data) ? data : []); })
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
 
   function clearGap(field: GapField) {
     setGaps((prev) => {
@@ -170,7 +170,7 @@ export default function CreateEventPage() {
       if (target === prev.length) return prev;
       if (target < prev.length) return prev.slice(0, target);
       const next = [...prev];
-      while (next.length < target) next.push({ date: "", type: "full" });
+      while (next.length < target) next.push(newDay());
       return next;
     });
   }
@@ -182,16 +182,26 @@ export default function CreateEventPage() {
     clearGap("schedule");
     setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, type } : d)));
   }
+  function setDayTime(i: number, key: "start" | "end", value: string) {
+    clearGap("schedule");
+    setDays((prev) => prev.map((d, idx) => (idx === i ? { ...d, [key]: value } : d)));
+  }
 
   const weightSum = days.reduce((t, d) => t + dayWeight(d.type), 0);
   const mult = weightSum;
   const { start: startDate, end: endDate } = scheduleWindow(days);
-  const rooms = recRooms(attendees);
 
-  const roomLines = rooms.map((id) => ({
-    label: ROOM_NAME[id],
-    role: ROOM_ROLE[id],
-    amount: "€" + fmt(ROOM_PRICE[id] * mult),
+  // The rooms come from the chosen solution's real event venues (not the tenant
+  // 3D cubes). `mapRooms` are the model cube ids that light up on the 3D map;
+  // the quote prices the venues themselves over the scheduled days.
+  const picks = selectedSolution?.picks ?? [];
+  const mapRooms = selectedSolution?.mapRooms ?? [];
+  const overCapacity = !!selectedSolution && attendees > selectedSolution.capacity;
+
+  const roomLines = picks.map((p) => ({
+    label: p.name,
+    role: ROLE_CHIP[p.role],
+    amount: "€" + fmt(p.price * mult),
   }));
   const assetLines = ASSETS.filter((a) => (assets[a.id] ?? 0) > 0).map((a) => ({
     label: `${a.label} × ${assets[a.id]}`,
@@ -204,19 +214,21 @@ export default function CreateEventPage() {
   const staffCost = staffEnabled ? staffCount * STAFF_COST_PER_PERSON : 0;
   const staffLines = staffEnabled && staffCount > 0 ? [{ label: `Event staff × ${staffCount}`, amount: "€" + fmt(staffCost) }] : [];
 
-  const roomCost = rooms.reduce((t, id) => t + ROOM_PRICE[id] * mult, 0);
+  const roomCost = picks.reduce((t, p) => t + p.price, 0) * mult;
   const assetCost = ASSETS.reduce((t, a) => t + a.unit * (assets[a.id] ?? 0), 0);
   const serviceCost = SERVICES.filter((s) => services.includes(s.id)).reduce(
     (t, s) => t + (s.perHead ? s.perHead * attendees : s.price ?? 0),
     0
   );
   const subtotal = roomCost + assetCost + serviceCost + staffCost;
-  const svc = subtotal * 0.1;
-  const total = subtotal + svc;
+  const vat = subtotal * VAT_RATE;
+  const total = subtotal + vat;
 
-  const reasonBullets = rooms.map((id) => ({ room: ROOM_NAME[id], text: ROOM_REASON[id] }));
-  const summaryRooms = rooms.map((id) => ROOM_NAME[id]).join(" · ");
+  const reasonBullets = picks.map((p) => ({ room: p.name, text: p.reason }));
+  const summaryRooms = picks.filter((p) => p.kind === "hall").map((p) => p.name).join(" · ");
   const convText = text || DEFAULT_PROMPT;
+  // Whether the booking can be submitted: a name, at least one date, a chosen plan.
+  const canSubmit = eventName.trim().length > 0 && !!startDate && !!selectedSolution;
 
   function toggle(list: string[], setList: (v: string[]) => void, id: string) {
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
@@ -272,6 +284,25 @@ export default function CreateEventPage() {
     }
   }
 
+  // Build the two right-sized options for a headcount and open the chooser.
+  function proposeSolutions(guests: number, needs?: Extraction["needs"]) {
+    const next = recommendSolutions(guests, {
+      breakoutRooms: needs?.breakoutRooms,
+      registrationDesk: needs?.registrationDesk,
+      publicGuestRegistration: needs?.publicGuestRegistration,
+      coffeeArea: needs?.coffeeArea,
+    });
+    setSolutions(next);
+    setSelectedSolution(null);
+    setStage("choose");
+  }
+
+  // The organizer picks one of the two solutions → continue to the live planner.
+  function chooseSolution(sol: Solution) {
+    setSelectedSolution(sol);
+    setStage("result");
+  }
+
   async function generatePlan() {
     const rawText = text || DEFAULT_PROMPT;
     setText(rawText);
@@ -291,7 +322,7 @@ export default function CreateEventPage() {
       if (!res.ok || !data?.extraction) {
         // The AI is an enhancement, not a gate — fall through to the planner.
         setPlanError(data?.error ?? "AI planning is unavailable right now — showing a standard plan.");
-        setStage("result");
+        proposeSolutions(attendees);
         return;
       }
       const ex = data.extraction as Extraction;
@@ -305,16 +336,23 @@ export default function CreateEventPage() {
       const realGaps = gapFields.filter((g) => !(g === "attendees" && ex.expectedGuests > 0));
       setGaps(new Set(realGaps));
       setQa(questions.map((question) => ({ question, answer: "" })));
-      setStage("result");
+      const guests = ex.expectedGuests > 0 ? Math.min(450, Math.max(20, ex.expectedGuests)) : attendees;
+      proposeSolutions(guests, ex.needs);
     } catch {
       setPlanError("Network error — showing a standard plan.");
-      setStage("result");
+      proposeSolutions(attendees);
     } finally {
       setPlanLoading(false);
     }
   }
 
   async function sendRequest() {
+    if (!canSubmit) {
+      setSubmitError(
+        !eventName.trim() ? "Please give your event a name." : !startDate ? "Please pick at least one date." : "Please choose a plan.",
+      );
+      return;
+    }
     const rawText = text || DEFAULT_PROMPT;
     setSubmitting(true);
     setSubmitError(null);
@@ -323,15 +361,20 @@ export default function CreateEventPage() {
         .map((row) => ({ question: row.question, answer: row.answer.trim() }))
         .filter((row) => row.answer.length > 0);
       const assetSummary = ASSETS.filter((a) => (assets[a.id] ?? 0) > 0).map((a) => `${a.label}: ${assets[a.id]}`);
-      const dayList = days.map((d, i) => ({ day: i + 1, date: d.date, type: d.type }));
+      const dayList = days.map((d, i) => ({ day: i + 1, date: d.date, type: d.type, start: d.start, end: d.end }));
       const res = await fetch("/api/organizer/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          title: eventName.trim(),
           rawText,
           channel: "portal",
           clarifications: answered,
-          schedule: { startDate, endDate, days: days.map((d) => ({ date: d.date, type: d.type })) },
+          schedule: {
+            startDate,
+            endDate,
+            days: days.map((d) => ({ date: d.date, type: d.type, start: d.start, end: d.end })),
+          },
           configuration: {
             attendees,
             days: dayList,
@@ -340,6 +383,18 @@ export default function CreateEventPage() {
             services: SERVICES.filter((s) => services.includes(s.id)).map((s) => s.label),
             access: { externalGuests: allowExternalGuests, visibility: isPublic ? "public" : "private" },
             estimatedTotal: Math.round(total),
+            solution: selectedSolution
+              ? {
+                  id: selectedSolution.id,
+                  tier: selectedSolution.tier,
+                  label: selectedSolution.label,
+                  rooms: selectedSolution.rooms,
+                  mapRooms: selectedSolution.mapRooms,
+                  capacity: selectedSolution.capacity,
+                  estimatedCost: selectedSolution.estimatedCost,
+                  picks: selectedSolution.picks.map((p) => ({ id: p.id, name: p.name, role: p.role, capacity: p.capacity, price: p.price, kind: p.kind, reason: p.reason })),
+                }
+              : undefined,
           },
         }),
       });
@@ -381,7 +436,7 @@ export default function CreateEventPage() {
           schedule: { startDate, endDate, days: days.map((d) => ({ date: d.date, type: d.type })) },
           assets,
           services,
-          rooms,
+          rooms: selectedSolution?.rooms ?? [],
           access: { externalGuests: allowExternalGuests, isPublic },
         }),
       });
@@ -478,9 +533,21 @@ export default function CreateEventPage() {
             <p style={{ font: "400 16px/1.55 Inter, sans-serif", color: "#AEB5C2", maxWidth: 480, margin: "0 auto", textWrap: "pretty" }}>
               Describe your event in plain words. The Pyramid will find your rooms.
             </p>
-            <div style={{ maxWidth: 540, margin: "18px auto 0", animation: "floatY 8s ease-in-out infinite" }}>
-              <PyramidTwin selected={rooms} labels showRoutes liveEvents={liveEvents} />
-            </div>
+            {/* Static pyramid sticker — a real alpha-cutout PNG (transparent
+                background baked in), so only the pyramid's silhouette is drawn
+                over the page. No box, no rectangle, no blend tricks. */}
+            <img
+              src="/pyramid-still.png"
+              alt="The Pyramid of Tirana"
+              style={{
+                display: "block",
+                width: "100%",
+                maxWidth: 600,
+                height: "auto",
+                margin: "6px auto 0",
+                pointerEvents: "none",
+              }}
+            />
           </div>
           <div style={{ position: "relative", maxWidth: 720, margin: "0 auto" }}>
             <div style={{ border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, background: "#151821", padding: 18, boxShadow: "0 18px 50px rgba(0,0,0,.4)" }}>
@@ -579,6 +646,99 @@ export default function CreateEventPage() {
         </section>
       )}
 
+      {stage === "choose" && (
+        <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 32, paddingBottom: 54, maxWidth: 1020, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
+            <div style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".16em" }}>
+              CREATE EVENT · CHOOSE A PLAN
+            </div>
+            <button onClick={() => setStage("prompt")} style={{ font: "600 12px Inter, sans-serif", color: "#C8F000", background: "none", border: "none", cursor: "pointer" }}>
+              ↺ Re-describe
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 22 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, flex: "none", background: "rgba(200,240,0,.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {sparkle}
+            </div>
+            <div style={{ maxWidth: 640, padding: "14px 18px", borderRadius: "4px 16px 16px 16px", background: "rgba(200,240,0,.05)", border: "1px solid rgba(200,240,0,.18)", font: "400 15px/1.55 Inter, sans-serif", color: "#AEB5C2" }}>
+              I&apos;ve put together <b style={{ color: "#fff" }}>two ways</b> to host your{" "}
+              <b style={{ color: "#fff" }}>{attendees}-guest</b> event — a leaner, focused option and one
+              with more space. Compare the rooms, the reasons and the estimated cost, then pick the one
+              that fits your priorities. You can fine-tune everything next.
+              {planError && <div style={{ marginTop: 10, font: "500 13px Inter, sans-serif", color: "#F59E0B" }}>{planError}</div>}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, alignItems: "stretch" }}>
+            {solutions.map((sol) => {
+              const fits = sol.capacity >= attendees;
+              return (
+                <div
+                  key={sol.id}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    border: "1px solid rgba(200,240,0,.22)",
+                    borderRadius: 18,
+                    background: "linear-gradient(180deg,rgba(200,240,0,.05),#151821)",
+                    padding: 20,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                    <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".16em" }}>
+                      OPTION {sol.id}
+                    </span>
+                    <span style={{ padding: "5px 10px", borderRadius: 7, background: fits ? "rgba(34,197,94,.12)" : "rgba(245,158,11,.12)", font: "600 10px 'JetBrains Mono', monospace", color: fits ? "#22C55E" : "#F7C66B" }}>
+                      {sol.capacity} seats{fits ? "" : " · tight"}
+                    </span>
+                  </div>
+                  <div style={{ font: "800 21px Inter, sans-serif", color: "#fff", letterSpacing: "-.02em", marginBottom: 4 }}>{sol.label}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 14 }}>
+                    <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799" }}>Estimated from</span>
+                    <span style={{ font: "800 22px 'JetBrains Mono', monospace", color: "#C8F000" }}>€{fmt(sol.estimatedCost)}</span>
+                  </div>
+
+                  <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".14em", marginBottom: 8 }}>ROOMS</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14 }}>
+                    {sol.picks.map((p) => (
+                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ padding: "3px 8px", borderRadius: 6, background: "rgba(200,240,0,.1)", border: "1px solid rgba(200,240,0,.22)", font: "600 9px 'JetBrains Mono', monospace", color: "#C8F000", flex: "none" }}>
+                          {ROLE_CHIP[p.role]}
+                        </span>
+                        <span style={{ font: "600 13px Inter, sans-serif", color: "#fff" }}>{p.name}</span>
+                        <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799" }}>~{p.capacity}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".14em", marginBottom: 8 }}>WHY THIS PLAN</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 12 }}>
+                    {sol.strengths.map((s, i) => (
+                      <div key={i} style={{ display: "flex", gap: 9 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: 2, background: "#C8F000", flex: "none", marginTop: 6 }} />
+                        <div style={{ font: "400 12.5px/1.5 Inter, sans-serif", color: "#AEB5C2" }}>{s}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", font: "400 12px/1.5 Inter, sans-serif", color: "#AEB5C2", marginBottom: 16 }}>
+                    {sol.tradeoff}
+                  </div>
+
+                  <button
+                    onClick={() => chooseSolution(sol)}
+                    style={{ marginTop: "auto", padding: 13, border: "none", borderRadius: 12, background: "#C8F000", color: "#0D0D12", font: "700 14px Inter, sans-serif", cursor: "pointer" }}
+                  >
+                    Choose this plan →
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {stage === "result" && (
         <>
           <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 32, paddingBottom: 8, maxWidth: 980 }}>
@@ -586,9 +746,14 @@ export default function CreateEventPage() {
               <div style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".16em" }}>
                 CREATE EVENT · CONVERSATION
               </div>
-              <button onClick={() => setStage("prompt")} style={{ font: "600 12px Inter, sans-serif", color: "#C8F000", background: "none", border: "none", cursor: "pointer" }}>
-                ↺ Re-describe
-              </button>
+              <div style={{ display: "flex", gap: 16 }}>
+                <button onClick={() => setStage("choose")} style={{ font: "600 12px Inter, sans-serif", color: "#C8F000", background: "none", border: "none", cursor: "pointer" }}>
+                  ← Change plan
+                </button>
+                <button onClick={() => setStage("prompt")} style={{ font: "600 12px Inter, sans-serif", color: "#7D8799", background: "none", border: "none", cursor: "pointer" }}>
+                  ↺ Re-describe
+                </button>
+              </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
               <div style={{ maxWidth: 560, padding: "14px 18px", borderRadius: "16px 16px 4px 16px", background: "#1D2230", border: "1px solid rgba(255,255,255,.08)", font: "400 15px/1.55 Inter, sans-serif", color: "#fff" }}>
@@ -600,10 +765,10 @@ export default function CreateEventPage() {
                 {sparkle}
               </div>
               <div style={{ maxWidth: 600, padding: "14px 18px", borderRadius: "4px 16px 16px 16px", background: "rgba(200,240,0,.05)", border: "1px solid rgba(200,240,0,.18)", font: "400 15px/1.55 Inter, sans-serif", color: "#AEB5C2" }}>
-                Got it — I&apos;ve read your request and highlighted{" "}
-                <b style={{ color: "#fff" }}>{rooms.length} recommended spaces</b> in the
-                Pyramid and built a live quote. Adjust attendees, duration or services on
-                the right and I&apos;ll re-plan instantly.
+                Here&apos;s your <b style={{ color: "#fff" }}>{selectedSolution?.label ?? "plan"}</b> —{" "}
+                <b style={{ color: "#fff" }}>{picks.filter((p) => p.kind === "hall").length} event room{picks.filter((p) => p.kind === "hall").length > 1 ? "s" : ""}</b>{" "}
+                highlighted in the Pyramid with a live quote. Adjust attendees, duration or services on
+                the right and I&apos;ll re-price instantly.
 
                 {ai && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
@@ -642,28 +807,7 @@ export default function CreateEventPage() {
             }}
           >
             <div style={{ position: "sticky", top: 20 }}>
-              <div
-                style={{
-                  position: "relative",
-                  border: "1px solid rgba(255,255,255,.08)",
-                  borderRadius: 20,
-                  background: "radial-gradient(680px 420px at 50% 35%,rgba(200,240,0,.06),#0B0E13)",
-                  overflow: "hidden",
-                  minHeight: "clamp(320px,40vw,460px)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 22,
-                }}
-              >
-                <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)", backgroundSize: "38px 38px" }} />
-                <div style={{ position: "absolute", top: 16, left: 16, padding: "7px 12px", borderRadius: 8, background: "rgba(13,13,18,.6)", border: "1px solid rgba(255,255,255,.08)", font: "600 10px 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".1em" }}>
-                  RECOMMENDED SPACES
-                </div>
-                <div style={{ position: "relative", width: "100%", maxWidth: 520 }}>
-                  <PyramidTwin selected={rooms} labels showRoutes liveEvents={liveEvents} />
-                </div>
-              </div>
+              <PyramidMap highlight={mapRooms} badge="RECOMMENDED SPACES" />
               <div style={{ marginTop: 16, border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, background: "#151821", padding: 18 }}>
                 <div style={{ font: "600 11px 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".12em", marginBottom: 12 }}>
                   WHY THESE ROOMS
@@ -692,6 +836,39 @@ export default function CreateEventPage() {
                     <div style={{ font: "400 12.5px/1.5 Inter, sans-serif", color: "#F7C66B" }}>
                       A couple of details are missing — please complete the highlighted{" "}
                       {[...gaps].map((g) => GAP_LABEL[g]).join(" & ")} field{gaps.size > 1 ? "s" : ""} below.
+                    </div>
+                  </div>
+                )}
+
+                {/* Event name — required, becomes the request title. */}
+                <label htmlFor="eventName" style={{ display: "block", font: "600 13px Inter, sans-serif", color: "#fff", marginBottom: 8 }}>
+                  Event name
+                </label>
+                <input
+                  id="eventName"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  placeholder="e.g. NextGen Startup Summit 2026"
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    marginBottom: 20,
+                    padding: "11px 13px",
+                    borderRadius: 10,
+                    border: `1px solid ${eventName.trim() ? "rgba(255,255,255,.1)" : "rgba(245,158,11,.55)"}`,
+                    background: "#0F1218",
+                    color: "#fff",
+                    font: "600 14px Inter, sans-serif",
+                    outline: "none",
+                  }}
+                />
+
+                {overCapacity && (
+                  <div style={{ display: "flex", gap: 9, alignItems: "flex-start", marginBottom: 16, padding: "11px 13px", borderRadius: 11, border: "1px solid rgba(245,158,11,.3)", background: "rgba(245,158,11,.06)" }}>
+                    <span style={{ font: "14px", flex: "none" }}>⚠️</span>
+                    <div style={{ font: "400 12.5px/1.5 Inter, sans-serif", color: "#F7C66B" }}>
+                      {attendees} guests exceeds this plan&apos;s {selectedSolution?.capacity} seats. Lower the
+                      headcount or <button onClick={() => setStage("choose")} style={{ font: "inherit", color: "#C8F000", background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}>pick a roomier plan</button>.
                     </div>
                   </div>
                 )}
@@ -750,36 +927,56 @@ export default function CreateEventPage() {
                   }}
                 >
                   {days.map((d, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", width: 38, flex: "none" }}>
-                        DAY {i + 1}
-                      </span>
-                      <input
-                        type="date"
-                        value={d.date}
-                        onChange={(e) => setDayDate(i, e.target.value)}
-                        style={{ flex: 1, minWidth: 130, boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid rgba(255,255,255,.1)", background: "#0F1218", color: d.date ? "#fff" : "#7D8799", font: "600 12px Inter, sans-serif", colorScheme: "dark" }}
-                      />
-                      <div style={{ display: "flex", flex: "none", borderRadius: 9, overflow: "hidden", border: "1px solid rgba(255,255,255,.1)" }}>
-                        {(["half", "full"] as DayType[]).map((t) => {
-                          const on = d.type === t;
-                          return (
-                            <button
-                              key={t}
-                              onClick={() => setDayType(i, t)}
-                              style={{
-                                padding: "9px 11px",
-                                border: "none",
-                                cursor: "pointer",
-                                background: on ? "#C8F000" : "transparent",
-                                color: on ? "#0D0D12" : "#AEB5C2",
-                                font: "600 11px Inter, sans-serif",
-                              }}
-                            >
-                              {t === "half" ? "½ day" : "Full"}
-                            </button>
-                          );
-                        })}
+                    <div key={i} style={{ display: "flex", flexDirection: "column", gap: 7, padding: "8px 0", borderBottom: i < days.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ font: "600 10px 'JetBrains Mono', monospace", color: "#7D8799", width: 38, flex: "none" }}>
+                          DAY {i + 1}
+                        </span>
+                        <input
+                          type="date"
+                          value={d.date}
+                          onChange={(e) => setDayDate(i, e.target.value)}
+                          style={{ flex: 1, minWidth: 130, boxSizing: "border-box", padding: "9px 11px", borderRadius: 9, border: "1px solid rgba(255,255,255,.1)", background: "#0F1218", color: d.date ? "#fff" : "#7D8799", font: "600 12px Inter, sans-serif", colorScheme: "dark" }}
+                        />
+                        <div style={{ display: "flex", flex: "none", borderRadius: 9, overflow: "hidden", border: "1px solid rgba(255,255,255,.1)" }}>
+                          {(["half", "full"] as DayType[]).map((t) => {
+                            const on = d.type === t;
+                            return (
+                              <button
+                                key={t}
+                                onClick={() => setDayType(i, t)}
+                                style={{
+                                  padding: "9px 11px",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  background: on ? "#C8F000" : "transparent",
+                                  color: on ? "#0D0D12" : "#AEB5C2",
+                                  font: "600 11px Inter, sans-serif",
+                                }}
+                              >
+                                {t === "half" ? "½ day" : "Full"}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 46 }}>
+                        <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", flex: "none" }}>Time</span>
+                        <input
+                          type="time"
+                          value={d.start}
+                          onChange={(e) => setDayTime(i, "start", e.target.value)}
+                          aria-label={`Day ${i + 1} start time`}
+                          style={{ flex: 1, minWidth: 92, boxSizing: "border-box", padding: "8px 10px", borderRadius: 9, border: "1px solid rgba(255,255,255,.1)", background: "#0F1218", color: "#fff", font: "600 12px Inter, sans-serif", colorScheme: "dark" }}
+                        />
+                        <span style={{ font: "500 11px Inter, sans-serif", color: "#7D8799", flex: "none" }}>→</span>
+                        <input
+                          type="time"
+                          value={d.end}
+                          onChange={(e) => setDayTime(i, "end", e.target.value)}
+                          aria-label={`Day ${i + 1} end time`}
+                          style={{ flex: 1, minWidth: 92, boxSizing: "border-box", padding: "8px 10px", borderRadius: 9, border: "1px solid rgba(255,255,255,.1)", background: "#0F1218", color: "#fff", font: "600 12px Inter, sans-serif", colorScheme: "dark" }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -977,8 +1174,8 @@ export default function CreateEventPage() {
                   <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>€{fmt(subtotal)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "0 0 12px", font: "500 13px Inter, sans-serif", color: "#7D8799", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
-                  <span>Service (10%)</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>€{fmt(svc)}</span>
+                  <span>VAT (20%)</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>€{fmt(vat)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0 0", font: "800 24px Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
                   <span>Total</span>
@@ -990,6 +1187,11 @@ export default function CreateEventPage() {
                 {submitError && (
                   <div style={{ width: "100%", font: "500 12px Inter, sans-serif", color: "#EF4444", marginBottom: 4 }}>
                     {submitError}
+                  </div>
+                )}
+                {!canSubmit && !submitError && (
+                  <div style={{ width: "100%", font: "500 12px Inter, sans-serif", color: "#F7C66B", marginBottom: 4 }}>
+                    {!eventName.trim() ? "Add an event name" : !startDate ? "Pick at least one date" : "Choose a plan"} to send for approval.
                   </div>
                 )}
                 <button
@@ -1005,11 +1207,11 @@ export default function CreateEventPage() {
                     padding: 15,
                     border: "none",
                     borderRadius: 12,
-                    background: submitting ? "#2A3040" : "#C8F000",
+                    background: submitting ? "#2A3040" : canSubmit ? "#C8F000" : "rgba(200,240,0,.4)",
                     color: submitting ? "#7D8799" : "#0D0D12",
                     font: "700 14px Inter, sans-serif",
                     cursor: submitting ? "default" : "pointer",
-                    boxShadow: submitting ? "none" : "0 8px 26px rgba(200,240,0,.2)",
+                    boxShadow: submitting || !canSubmit ? "none" : "0 8px 26px rgba(200,240,0,.2)",
                   }}
                 >
                   {submitting ? "Submitting…" : "Approve & send for approval"}
@@ -1051,11 +1253,13 @@ export default function CreateEventPage() {
               quote, and you&apos;ll be notified once it&apos;s confirmed.
             </p>
             <div style={{ display: "inline-flex", flexDirection: "column", gap: 10, border: "1px solid rgba(255,255,255,.08)", borderRadius: 16, background: "#151821", padding: "18px 22px", textAlign: "left", marginBottom: 28, minWidth: 300 }}>
+              <div style={summaryRow}><span>Event</span><span style={{ color: "#fff" }}>{eventName.trim() || "—"}</span></div>
               <div style={summaryRow}><span>Spaces</span><span style={{ color: "#fff" }}>{summaryRooms}</span></div>
               <div style={summaryRow}><span>Attendees</span><span style={{ color: "#fff" }}>{attendees}</span></div>
               {startDate && (
                 <div style={summaryRow}><span>Dates</span><span style={{ color: "#fff" }}>{prettyDate(startDate)} → {prettyDate(endDate)}</span></div>
               )}
+              <div style={summaryRow}><span>Daily time</span><span style={{ color: "#fff" }}>{days[0].start} – {days[0].end}</span></div>
               <div style={summaryRow}><span>Estimated total</span><span style={{ color: "#C8F000", fontFamily: "'JetBrains Mono', monospace" }}>€{fmt(total)}</span></div>
             </div>
 
