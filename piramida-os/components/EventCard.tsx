@@ -70,15 +70,6 @@ export function EventCard({
           >
             <span
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#fff",
-                animation: "blink 1.4s ease-in-out infinite",
-              }}
-            />
-            <span
-              style={{
                 font: "600 10px/1 'JetBrains Mono', monospace",
                 color: "#fff",
                 letterSpacing: ".12em",

@@ -114,7 +114,6 @@ export default function SetPasswordPage() {
 
         <div style={{ border: "1px solid rgba(255,255,255,.08)", borderRadius: 20, background: "#151821", padding: 28 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "6px 13px", border: "1px solid rgba(200,240,0,.28)", borderRadius: 100, background: "rgba(200,240,0,.05)", marginBottom: 18 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C8F000", boxShadow: "0 0 8px #C8F000" }} />
             <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".18em" }}>ACCESS SETUP</span>
           </div>
 

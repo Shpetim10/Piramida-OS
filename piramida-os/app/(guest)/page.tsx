@@ -187,13 +187,10 @@ function NoEventsHero() {
   );
 }
 
-function SectionHeader({ title, live, href, linkLabel }: { title: string; live?: boolean; href?: string; linkLabel?: string }) {
+function SectionHeader({ title, href, linkLabel }: { title: string; href?: string; linkLabel?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 22, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {live && (
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444", boxShadow: "0 0 8px #EF4444", animation: "blink 1.4s ease-in-out infinite", flexShrink: 0 }} />
-        )}
         <h2 style={{ font: "800 clamp(22px,2.8vw,30px)/1 Inter, sans-serif", letterSpacing: "-.02em", margin: 0, color: "#fff" }}>{title}</h2>
       </div>
       {href && (
@@ -417,7 +414,7 @@ export default function HomePage() {
       {/* Happening now */}
       {!loading && !error && hasAny && (
         <section style={{ paddingLeft: padX, paddingRight: padX, paddingTop: 48, paddingBottom: 10 }}>
-          <SectionHeader title="Happening now" live />
+          <SectionHeader title="Happening now" />
           {liveEvents.length === 0 ? (
             <EmptySection label="live events" />
           ) : (

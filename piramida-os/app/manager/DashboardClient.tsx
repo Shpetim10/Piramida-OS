@@ -120,9 +120,6 @@ export function DashboardClient({ data, rooms, selectedEventId }: Props) {
               }}
             >
               <span
-                style={{ width: 6, height: 6, borderRadius: "50%", background: A, boxShadow: "0 0 8px #C8F000" }}
-              />
-              <span
                 style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: A, letterSpacing: ".16em" }}
               >
                 OPERATIONAL STATUS · LIVE

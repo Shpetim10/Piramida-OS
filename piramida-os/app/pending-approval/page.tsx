@@ -97,7 +97,6 @@ export default async function PendingApprovalPage() {
                 </svg>
               </div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 12px", border: "1px solid rgba(200,240,0,.28)", borderRadius: 100, background: "rgba(200,240,0,.05)", marginBottom: 16 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C8F000", boxShadow: "0 0 8px #C8F000" }} />
                 <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".18em" }}>PENDING APPROVAL</span>
               </div>
               <h1 style={{ font: "800 24px/1.1 Inter, sans-serif", letterSpacing: "-.02em", color: "#fff", margin: "0 0 10px" }}>

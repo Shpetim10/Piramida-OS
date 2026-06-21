@@ -29,7 +29,6 @@ export default function BecomePage() {
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(760px 460px at 50% 10%,rgba(200,240,0,.12),transparent 60%)", pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 2, maxWidth: 740, margin: "0 auto" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "7px 14px", border: "1px solid rgba(200,240,0,.28)", borderRadius: 100, background: "rgba(200,240,0,.05)", marginBottom: 24 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C8F000", boxShadow: "0 0 8px #C8F000" }} />
             <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".18em" }}>ORGANIZER STUDIO</span>
           </div>
           <h1 style={{ font: "800 clamp(34px,5.4vw,62px)/1.02 Inter, sans-serif", letterSpacing: "-.035em", margin: "0 0 18px", color: "#fff", textWrap: "balance" }}>

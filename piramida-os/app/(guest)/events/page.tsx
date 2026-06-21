@@ -51,7 +51,6 @@ function EventCard({ event }: { event: PublicEvent }) {
         {/* Top-left badge */}
         {event.category === "live" ? (
           <div style={{ position: "absolute", top: 14, left: 14, display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 11px", borderRadius: 8, background: "rgba(239,68,68,.85)" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", animation: "blink 1.4s ease-in-out infinite" }} />
             <span style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#fff", letterSpacing: ".12em" }}>LIVE NOW</span>
           </div>
         ) : isPast ? (

@@ -156,7 +156,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 12, paddingTop: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, background: "#0F1218" }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 8px #22C55E", flex: "none" }} />
             <div style={{ font: "600 10px/1.3 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".06em" }}>
               SINGLE TENANT
               <br />
