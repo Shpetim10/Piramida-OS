@@ -73,13 +73,6 @@ export default async function Page({ params }: { params: Promise<{ eventId: stri
       ]
     : [];
 
-  // Build requirements list from DB records.
-  const requirementRows = event?.requirements.map((r) => ({
-    label: r.key.replace(/([A-Z])/g, " $1").trim(),
-    map: String(r.valueJson),
-    source: r.source ?? "staff",
-  })) ?? [];
-
   // AI narration (uses only tool-verified data from event).
   const planNarration = event
     ? await narratePlan({

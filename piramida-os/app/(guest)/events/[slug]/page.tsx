@@ -66,7 +66,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
   const [formState, setFormState] = useState({ fullName: "", email: "", company: "", consentAccepted: false });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [registered, setRegistered] = useState<RegisteredState | null>(null);
+  const [registered, setRegistered] = useState<RegisteredState | null>(() => getRegistration(slug) ?? null);
   const [liveEvents, setLiveEvents] = useState<LiveEventMarker[]>([]);
 
   // Live events (DB timeline) to mark on the guest map's 3D twin.
@@ -78,12 +78,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ slug: st
       .catch(() => {});
     return () => { active = false; };
   }, []);
-
-  // Restore prior registration from cookie on mount.
-  useEffect(() => {
-    const saved = getRegistration(slug);
-    if (saved) setRegistered(saved);
-  }, [slug]);
 
   useEffect(() => {
     fetch(`/api/public/events/${encodeURIComponent(slug)}`)

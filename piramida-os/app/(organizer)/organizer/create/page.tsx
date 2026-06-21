@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import { useState, useEffect } from "react";
 import { PyramidMap } from "@/components/pyramid3d/PyramidMap";
 import { useViewport } from "@/lib/useViewport";
 import { useTasksStore, type NewTaskCard } from "@/lib/manager/tasks-store";
@@ -23,7 +24,7 @@ import {
   VAT_RATE,
 } from "@/lib/data";
 
-type Stage = "prompt" | "choose" | "result" | "sent";
+type Stage = "prompt" | "thinking" | "choose" | "result" | "sent";
 
 const ROLE_CHIP: Record<SolutionRole, string> = {
   keynote: "Keynote",
@@ -126,6 +127,15 @@ const sparkle = (
     <path d="M12 3l1.8 4.8L18.6 9.6 13.8 11.4 12 16.2 10.2 11.4 5.4 9.6 10.2 7.8z" />
   </svg>
 );
+
+const THINKING_STEPS = [
+  "Parsing your request",
+  "Extracting event requirements",
+  "Sizing spaces for your guests",
+  "Checking venue availability",
+  "Building plan options",
+  "Finalising recommendations",
+];
 
 export default function CreateEventPage() {
   const { isMobile } = useViewport();
@@ -237,10 +247,22 @@ export default function CreateEventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [planLoading, setPlanLoading] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState(0);
   const [planError, setPlanError] = useState<string | null>(null);
   const [ai, setAi] = useState<AiInfo | null>(null);
   const [qa, setQa] = useState<QA[]>([]);
+
+  // Advance thinking step indicators while the AI call runs.
+  useEffect(() => {
+    if (stage !== "thinking") return;
+    const t0 = setTimeout(() => setThinkingStep(0), 0);
+    const t1 = setTimeout(() => setThinkingStep(1), 550);
+    const t2 = setTimeout(() => setThinkingStep(2), 1150);
+    const t3 = setTimeout(() => setThinkingStep(3), 1850);
+    const t4 = setTimeout(() => setThinkingStep(4), 2700);
+    const t5 = setTimeout(() => setThinkingStep(5), 3500);
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
+  }, [stage]);
 
   function setAnswer(i: number, answer: string) {
     setQa((prev) => prev.map((row, idx) => (idx === i ? { ...row, answer } : row)));
@@ -307,7 +329,7 @@ export default function CreateEventPage() {
     const rawText = text || DEFAULT_PROMPT;
     setText(rawText);
     setPlanError(null);
-    setPlanLoading(true);
+    setStage("thinking");
     try {
       const res = await fetch("/api/organizer/plan", {
         method: "POST",
@@ -332,7 +354,6 @@ export default function CreateEventPage() {
         confidence: typeof data.confidence === "number" ? data.confidence : ex.confidence,
       });
       const { gaps: gapFields, questions } = classifyAsk(ex);
-      // A guess for guests already fills the slider, so don't nag for it.
       const realGaps = gapFields.filter((g) => !(g === "attendees" && ex.expectedGuests > 0));
       setGaps(new Set(realGaps));
       setQa(questions.map((question) => ({ question, answer: "" })));
@@ -341,8 +362,6 @@ export default function CreateEventPage() {
     } catch {
       setPlanError("Network error — showing a standard plan.");
       proposeSolutions(attendees);
-    } finally {
-      setPlanLoading(false);
     }
   }
 
@@ -510,6 +529,9 @@ export default function CreateEventPage() {
         @keyframes aiSweep { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
         @keyframes aiBounce { 0%,80%,100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-5px); opacity: 1; } }
         @keyframes gapPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,.5); border-color: rgba(245,158,11,.85); } 50% { box-shadow: 0 0 0 5px rgba(245,158,11,0); border-color: rgba(245,158,11,.45); } }
+        @keyframes pyramidScanLine { 0% { top: 110%; } 45% { top: -30%; } 55% { top: -30%; } 100% { top: 110%; } }
+        @keyframes stepFadeIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes thinkingGlow { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
       `}</style>
       {stage === "prompt" && (
         <section
@@ -536,9 +558,12 @@ export default function CreateEventPage() {
             {/* Static pyramid sticker — a real alpha-cutout PNG (transparent
                 background baked in), so only the pyramid's silhouette is drawn
                 over the page. No box, no rectangle, no blend tricks. */}
-            <img
+            <Image
               src="/pyramid-still.png"
               alt="The Pyramid of Tirana"
+              width={600}
+              height={480}
+              priority
               style={{
                 display: "block",
                 width: "100%",
@@ -592,56 +617,178 @@ export default function CreateEventPage() {
                 </div>
                 <button
                   onClick={generatePlan}
-                  disabled={planLoading}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 9,
                     padding: "13px 22px",
                     borderRadius: 12,
-                    background: planLoading ? "#2A3040" : "#C8F000",
-                    color: planLoading ? "#7D8799" : "#0D0D12",
+                    background: "#C8F000",
+                    color: "#0D0D12",
                     font: "700 14px Inter, sans-serif",
-                    cursor: planLoading ? "default" : "pointer",
+                    cursor: "pointer",
                     whiteSpace: "nowrap",
                     border: "none",
                   }}
                 >
-                  {planLoading ? null : sparkle}
-                  {planLoading ? "Reading your request…" : "Generate plan"}
+                  {sparkle}
+                  Generate plan
                 </button>
               </div>
             </div>
 
-            {planLoading && (
-              <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", borderRadius: 16, border: "1px solid rgba(200,240,0,.22)", background: "rgba(200,240,0,.04)" }}>
-                <span style={{ width: 36, height: 36, borderRadius: 11, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(200,240,0,.12)", animation: "aiGlow 1.4s ease-in-out infinite" }}>
-                  {sparkle}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, font: "600 13px Inter, sans-serif", color: "#fff" }}>
-                    Pyramid AI is reading your request
-                    <span style={{ display: "inline-flex", gap: 4 }}>
-                      {[0, 1, 2].map((i) => (
-                        <span
-                          key={i}
-                          style={{
-                            width: 5,
-                            height: 5,
-                            borderRadius: "50%",
-                            background: "#C8F000",
-                            animation: `aiBounce 1.1s ${i * 0.18}s ease-in-out infinite`,
-                          }}
-                        />
-                      ))}
+          </div>
+        </section>
+      )}
+
+      {stage === "thinking" && (
+        <section
+          style={{
+            position: "relative",
+            minHeight: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "80px 24px",
+            overflow: "hidden",
+          }}
+        >
+          {/* Radial background glow */}
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(700px 500px at 50% 38%, rgba(200,240,0,.08), transparent 65%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(300px 300px at 50% 36%, rgba(200,240,0,.04), transparent 55%)", pointerEvents: "none" }} />
+
+          {/* Label */}
+          <div style={{ font: "600 10px/1 'JetBrains Mono', monospace", color: "#C8F000", letterSpacing: ".28em", marginBottom: 52, opacity: 0.75, zIndex: 1 }}>
+            PYRAMID AI · ANALYZING REQUEST
+          </div>
+
+          {/* Animated pyramid */}
+          <div style={{ position: "relative", marginBottom: 52, zIndex: 1 }}>
+            {/* Ambient glow behind the image */}
+            <div style={{
+              position: "absolute",
+              inset: -32,
+              background: "radial-gradient(ellipse at center, rgba(200,240,0,.15) 0%, transparent 68%)",
+              pointerEvents: "none",
+              animation: "thinkingGlow 2.8s ease-in-out infinite",
+            }} />
+            {/* Image + scan overlay */}
+            <div style={{ position: "relative", overflow: "hidden", borderRadius: 2 }}>
+              <Image
+                src="/pyramid-still.png"
+                alt="Pyramid of Tirana"
+                width={240}
+                height={192}
+                priority
+                style={{ display: "block", width: 240, height: "auto" }}
+              />
+              {/* Subtle lime tint */}
+              <div style={{ position: "absolute", inset: 0, background: "rgba(200,240,0,.04)", pointerEvents: "none" }} />
+              {/* Scan beam — sweeps from bottom to top */}
+              <div style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                height: "32%",
+                top: "110%",
+                background: "linear-gradient(180deg, transparent 0%, rgba(200,240,0,.06) 20%, rgba(200,240,0,.28) 50%, rgba(200,240,0,.06) 80%, transparent 100%)",
+                animation: "pyramidScanLine 2.6s ease-in-out infinite",
+                pointerEvents: "none",
+              }} />
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: "100%", maxWidth: 380, height: 1, background: "linear-gradient(90deg, transparent, rgba(200,240,0,.18), transparent)", marginBottom: 36, zIndex: 1 }} />
+
+          {/* Step log */}
+          <div style={{ width: "100%", maxWidth: 380, zIndex: 1 }}>
+            {THINKING_STEPS.map((label, i) => {
+              const done = thinkingStep > i;
+              const active = thinkingStep === i;
+              const pending = !done && !active;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "7px 0",
+                    opacity: pending ? 0.22 : 1,
+                    transition: "opacity 0.5s ease",
+                    animation: active ? "stepFadeIn 0.35s ease forwards" : undefined,
+                  }}
+                >
+                  {/* Step indicator */}
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 7,
+                      flex: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: done ? "rgba(200,240,0,.14)" : active ? "rgba(200,240,0,.08)" : "transparent",
+                      border: `1px solid ${done ? "rgba(200,240,0,.45)" : active ? "rgba(200,240,0,.35)" : "rgba(255,255,255,.1)"}`,
+                      transition: "background 0.4s, border-color 0.4s",
+                    }}
+                  >
+                    {done && (
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="#C8F000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                    {active && (
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#C8F000", animation: "aiGlow 0.9s ease-in-out infinite" }} />
+                    )}
+                  </span>
+
+                  {/* Label */}
+                  <span
+                    style={{
+                      font: `${active ? "600" : "400"} 13.5px/1 Inter, sans-serif`,
+                      color: done ? "#C8F000" : active ? "#fff" : "#7D8799",
+                      letterSpacing: active ? "0" : ".01em",
+                      transition: "color 0.4s, font-weight 0.2s",
+                    }}
+                  >
+                    {label}
+                    {active && (
+                      <span style={{ display: "inline-flex", gap: 3, marginLeft: 8, verticalAlign: "middle" }}>
+                        {[0, 1, 2].map((j) => (
+                          <span
+                            key={j}
+                            style={{
+                              width: 4,
+                              height: 4,
+                              borderRadius: "50%",
+                              background: "#C8F000",
+                              display: "inline-block",
+                              animation: `aiBounce 1.1s ${j * 0.18}s ease-in-out infinite`,
+                            }}
+                          />
+                        ))}
+                      </span>
+                    )}
+                  </span>
+
+                  {/* Done timestamp-style badge */}
+                  {done && (
+                    <span style={{ marginLeft: "auto", font: "500 10px 'JetBrains Mono', monospace", color: "rgba(200,240,0,.45)", letterSpacing: ".04em" }}>
+                      ✓
                     </span>
-                  </div>
-                  <div style={{ marginTop: 9, height: 4, borderRadius: 4, overflow: "hidden", background: "rgba(255,255,255,.06)" }}>
-                    <div style={{ height: "100%", width: "35%", borderRadius: 4, background: "linear-gradient(90deg,transparent,#C8F000,transparent)", animation: "aiSweep 1.2s ease-in-out infinite" }} />
-                  </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })}
+          </div>
+
+          {/* Progress scan bar */}
+          <div style={{ width: "100%", maxWidth: 380, marginTop: 36, height: 2, borderRadius: 2, background: "rgba(255,255,255,.05)", overflow: "hidden", zIndex: 1 }}>
+            <div style={{ height: "100%", background: "linear-gradient(90deg, transparent, rgba(200,240,0,.7), transparent)", animation: "aiSweep 1.8s ease-in-out infinite" }} />
           </div>
         </section>
       )}

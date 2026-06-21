@@ -165,7 +165,6 @@ export async function createEvent(input: unknown) {
   const data = createEventInput.parse(input);
   const orgId = await getOrgId();
   const year = new Date().getFullYear();
-  const count = await prisma.event.count({ where: { orgId } });
   const event = await prisma.event.create({
     data: {
       orgId,

@@ -118,6 +118,13 @@ export async function detectConflicts(eventId: string) {
         rationale: `${s.replacementCategory} units are free for the full reservation window and are an allowed replacement.`,
         payload: { replacementCategory: s.replacementCategory, quantity: s.shortBy },
       });
+    } else {
+      await ensureSuggestion(orgId, conflict.id, {
+        type: ConflictSuggestionType.REDUCE_QUANTITY,
+        label: `Reduce ${s.category} requirement from ${s.required} to ${s.available}`,
+        rationale: `Only ${s.available} ${s.category} are available in total stock. Reduce the requirement or source additional units externally.`,
+        payload: { category: s.category, currentRequired: s.required, maxAvailable: s.available, reduceBy: s.shortBy },
+      });
     }
   }
 

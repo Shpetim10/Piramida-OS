@@ -7,6 +7,7 @@ import { Reveal } from "@/components/Reveal";
 import { LetterReveal } from "@/components/LetterReveal";
 import { useViewport } from "@/lib/useViewport";
 import { HOME_STATS } from "@/lib/data";
+import { BrandMark } from "@/components/BrandLogo";
 
 type EventCategory = "live" | "upcoming" | "past";
 
@@ -139,12 +140,7 @@ function NoEventsHero() {
       }}
     >
       <div style={{ position: "absolute", top: -60, left: "50%", transform: "translateX(-50%)", width: 360, height: 360, background: "radial-gradient(closest-side,rgba(200,240,0,.08),transparent)", pointerEvents: "none" }} />
-      {/* Pyramid icon */}
-      <svg width="56" height="48" viewBox="0 0 56 48" fill="none" style={{ marginBottom: 20, opacity: .55 }}>
-        <polygon points="28,4 54,44 2,44" stroke="#C8F000" strokeWidth="1.5" fill="rgba(200,240,0,.06)" />
-        <line x1="28" y1="4" x2="28" y2="44" stroke="rgba(200,240,0,.25)" strokeWidth="1" />
-        <line x1="2" y1="44" x2="54" y2="44" stroke="rgba(200,240,0,.15)" strokeWidth="1" />
-      </svg>
+      <BrandMark height={48} style={{ marginBottom: 20, opacity: 0.55 }} />
       <h2
         style={{
           position: "relative",

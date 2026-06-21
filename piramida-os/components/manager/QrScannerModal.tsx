@@ -78,11 +78,8 @@ export function QrScannerModal({ onDetected, onClose }: Props) {
 
     return () => {
       stopped = true;
-      // Stop all camera tracks on unmount.
+      // streamRef is set inside startScan when the stream is active — stop it here.
       streamRef.current?.getTracks().forEach((t) => t.stop());
-      if (videoRef.current?.srcObject instanceof MediaStream) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
-      }
     };
   }, [onDetected]);
 

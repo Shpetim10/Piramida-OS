@@ -16,6 +16,7 @@ export interface OrganizerIdentity {
 const ICONS: Record<string, string> = {
   dashboard: "M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z",
   create: "M12 3l1.8 4.8L18.6 9.6 13.8 11.4 12 16.2 10.2 11.4 5.4 9.6 10.2 7.8z",
+  budget: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
   myevents: "M3 5h18v16H3zM3 9.5h18M8 3v4M16 3v4",
   requests: "M5 4h11l3 3v13H5zM15 4v4h4M8 13h7M8 17h5",
   profile: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 21c0-4 4-6 8-6s8 2 8 6",
@@ -24,6 +25,7 @@ const ICONS: Record<string, string> = {
 const NAV = [
   { href: "/organizer", label: "Dashboard", icon: "dashboard" },
   { href: "/organizer/create", label: "Create Event", icon: "create" },
+  { href: "/organizer/budget", label: "Budget Planner", icon: "budget" },
   { href: "/organizer/events", label: "My Events", icon: "myevents" },
   { href: "/organizer/requests", label: "Requests", icon: "requests" },
   { href: "/organizer/profile", label: "Profile", icon: "profile" },
@@ -289,10 +291,7 @@ export function OrganizerShell({
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
-            <svg width="24" height="24" viewBox="0 0 34 34" fill="none">
-              <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.8" />
-              <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
-            </svg>
+            <BrandMark height={24} />
             <div style={{ font: "800 15px Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>
               Organizer Studio
             </div>

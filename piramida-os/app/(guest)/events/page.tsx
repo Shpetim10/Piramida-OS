@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useViewport } from "@/lib/useViewport";
+import { BrandMark } from "@/components/BrandLogo";
 
 type EventCategory = "live" | "upcoming" | "past";
 
@@ -110,10 +111,7 @@ function EmptyEventsState() {
       }}
     >
       <div style={{ position: "absolute", top: -40, left: "50%", transform: "translateX(-50%)", width: 300, height: 300, background: "radial-gradient(closest-side,rgba(200,240,0,.07),transparent)", pointerEvents: "none" }} />
-      <svg width="48" height="42" viewBox="0 0 56 48" fill="none" style={{ marginBottom: 16, opacity: .5 }}>
-        <polygon points="28,4 54,44 2,44" stroke="#C8F000" strokeWidth="1.5" fill="rgba(200,240,0,.06)" />
-        <line x1="28" y1="4" x2="28" y2="44" stroke="rgba(200,240,0,.2)" strokeWidth="1" />
-      </svg>
+      <BrandMark height={42} style={{ marginBottom: 16, opacity: 0.5 }} />
       <h3 style={{ position: "relative", font: "800 clamp(20px,3vw,28px)/1.1 Inter, sans-serif", letterSpacing: "-.02em", margin: "0 0 10px", color: "#fff" }}>
         Nothing scheduled yet
       </h3>

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useViewport } from "@/lib/useViewport";
 import { MgrIcon } from "@/components/manager/twin";
-import { FOCUS_EVENT_ID, FOCUS_EVENT_NAME, SCREEN_LABELS } from "@/lib/manager/data";
+import { FOCUS_EVENT_NAME, SCREEN_LABELS } from "@/lib/manager/data";
 import { logoutAction } from "@/lib/auth/logout";
 import { BrandMark } from "@/components/BrandLogo";
 

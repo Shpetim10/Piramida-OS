@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/auth/supabase-browser";
+import { BrandMark } from "@/components/BrandLogo";
 
 export default function AuthConfirmPage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function AuthConfirmPage() {
     const type = params.get("type");
 
     if (!accessToken || !refreshToken) {
-      setError("Invalid or expired confirmation link. Please ask an admin to resend your invite.");
+      setTimeout(() => setError("Invalid or expired confirmation link. Please ask an admin to resend your invite."), 0);
       return;
     }
 
@@ -63,10 +64,7 @@ export default function AuthConfirmPage() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
-          </svg>
+          <BrandMark height={32} />
           <div style={{ font: "600 13px Inter, sans-serif", color: "#AEB5C2" }}>
             Confirming your account…
           </div>

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { listPendingOrganizers } from "@/lib/services/organizers";
 import { ok, handleApiError } from "@/lib/api/respond";
 

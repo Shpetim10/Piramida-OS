@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandLogo";
 
 interface TicketData {
   token: string;
@@ -56,10 +57,7 @@ export default function TicketPage({
             {/* Header */}
             <div style={{ padding: "28px 28px 20px", borderBottom: "1px solid rgba(255,255,255,.07)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 18 }}>
-                <svg width="28" height="28" viewBox="0 0 34 34" fill="none">
-                  <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
-                  <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
-                </svg>
+                <BrandMark height={28} />
                 <div>
                   <div style={{ font: "800 14px/1 Inter, sans-serif", color: "#fff" }}>Pyramid OS</div>
                   <div style={{ font: "600 8px/1 'JetBrains Mono', monospace", color: "#7D8799", marginTop: 3, letterSpacing: ".2em" }}>PYRAMID OF TIRANA</div>

@@ -134,6 +134,7 @@ function SpacePin({
     : { color: new Color(space.color).lerp(new Color("#11151d"), 0.32).getStyle() };
 
   const inner = space.logo ? (
+    // eslint-disable-next-line @next/next/no-img-element
     <img className="map-pin-logo" src={space.logo} alt={space.name} />
   ) : (
     <span className="map-pin-initials">{initials}</span>

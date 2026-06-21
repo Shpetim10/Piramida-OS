@@ -509,6 +509,50 @@ export async function detectAssetShortages(eventId: string) {
       });
     }
   }
+
+  for (const [key, catName] of Object.entries(BULK_REQ_TO_CATEGORY)) {
+    const required = numericRequirement(event.requirements, key);
+    if (required <= 0) continue;
+    const category = await prisma.assetCategory.findFirst({
+      where: { orgId, name: catName, deletedAt: null },
+    });
+    if (!category) continue;
+    const batches = await prisma.assetBatch.findMany({
+      where: { orgId, categoryId: category.id, deletedAt: null },
+      select: { id: true, totalQuantity: true },
+    });
+    const totalQuantity = batches.reduce((sum, b) => sum + b.totalQuantity, 0);
+    const batchIds = batches.map((b) => b.id);
+    const reservedByOthers = batchIds.length > 0
+      ? await prisma.assetReservationItem.aggregate({
+          where: {
+            orgId,
+            batchId: { in: batchIds },
+            itemStatus: { notIn: INACTIVE_ITEM_STATUSES },
+            windowStart: { lt: win.availabilityUntil },
+            windowEnd: { gt: win.setupStart },
+            reservation: {
+              status: { in: ACTIVE_RES_STATUSES },
+              deletedAt: null,
+              eventId: { not: eventId },
+            },
+          },
+          _sum: { quantity: true },
+        })
+      : { _sum: { quantity: null } };
+    const reservedByOthersQty = reservedByOthers._sum.quantity ?? 0;
+    const available = Math.max(0, totalQuantity - reservedByOthersQty);
+    if (available < required) {
+      shortages.push({
+        category: catName,
+        required,
+        available,
+        shortBy: required - available,
+        replacementCategory: null,
+      });
+    }
+  }
+
   return shortages;
 }
 

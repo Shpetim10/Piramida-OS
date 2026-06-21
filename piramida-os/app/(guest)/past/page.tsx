@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useViewport } from "@/lib/useViewport";
+import { BrandMark } from "@/components/BrandLogo";
 
 interface PublicEvent {
   slug: string;
@@ -68,9 +69,7 @@ function EmptyArchiveState() {
         textAlign: "center",
       }}
     >
-      <svg width="44" height="38" viewBox="0 0 56 48" fill="none" style={{ marginBottom: 16, opacity: .35 }}>
-        <polygon points="28,4 54,44 2,44" stroke="#C8F000" strokeWidth="1.5" fill="none" />
-      </svg>
+      <BrandMark height={38} style={{ marginBottom: 16, opacity: 0.35 }} />
       <h3 style={{ font: "700 clamp(18px,2.5vw,24px)/1.1 Inter, sans-serif", margin: "0 0 10px", color: "#AEB5C2" }}>
         Archive is empty
       </h3>

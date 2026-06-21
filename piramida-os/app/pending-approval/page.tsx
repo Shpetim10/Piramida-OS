@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentProfile } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/auth/supabase-server";
 import { DEMO_COOKIE } from "@/lib/demo/personas";
+import { BrandMark } from "@/components/BrandLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -66,10 +67,7 @@ export default async function PendingApprovalPage() {
 
       <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 460, textAlign: "center" }}>
         <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 11, marginBottom: 24 }}>
-          <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
-          </svg>
+          <BrandMark height={32} />
           <div style={{ font: "800 17px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>Pyramid OS</div>
         </div>
 

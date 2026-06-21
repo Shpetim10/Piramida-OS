@@ -171,6 +171,7 @@ async function buildInventoryRows(
       .filter((i) => i.quantity > 0 && i.category?.name === exactCatName)
       .reduce((sum, item) => sum + item.quantity, 0);
     const shortage = shortages.find((s) => s.category === exactCatName);
+
     const avail = shortage ? shortage.available : required;
     const short = shortage ? shortage.shortBy > 0 : false;
 

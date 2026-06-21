@@ -22,13 +22,6 @@ type Clarifications = {
   };
 };
 
-function prettyDate(iso?: string): string {
-  if (!iso) return "—";
-  const d = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
-}
-
 const ROLE_TINT: Record<string, string> = { keynote: "#C8F000", breakout: "#5fc24a", support: "#7D8799" };
 
 export default async function Page({ params }: { params: Promise<{ requestId: string }> }) {

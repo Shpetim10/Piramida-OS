@@ -139,7 +139,7 @@ export function useProcessedModel() {
     });
 
     return { root, glass, scale, offset, height: size.y * scale, halfX: (size.x / 2) * scale };
-  }, [obj, materials]);
+  }, [obj]);
 }
 
 // ---- the OSM surroundings (white buildings, no pyramid) -------------------
@@ -226,7 +226,7 @@ function useSurroundings() {
     }
 
     return { root, scale, occ, occCell };
-  }, [obj, materials]);
+  }, [obj]);
 }
 
 /** Bold low-poly park trees ringing the pyramid and clustered out across the

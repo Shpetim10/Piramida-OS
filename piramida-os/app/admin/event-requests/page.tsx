@@ -396,8 +396,6 @@ function AIExtractionSection({ ex, confidence, missingFields }: { ex: ExtractedJ
 
 // ─── Action bar ───────────────────────────────────────────────────────────────
 
-type ActionState = "idle" | "acting" | "success" | "error";
-
 function ActionBtn({
   label, onClick, variant = "ghost", disabled, icon,
 }: {
@@ -468,7 +466,6 @@ function ActionBar({
   onUpdate: (patch: Partial<EventRequestRow>) => void;
 }) {
   const [acting, setActing] = useState<string | null>(null);
-  const [actionState, setActionState] = useState<ActionState>("idle");
   const [showReject, setShowReject] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -484,7 +481,6 @@ function ActionBar({
 
   async function call(label: string, url: string, body?: object): Promise<unknown | null> {
     setActing(label);
-    setActionState("acting");
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -494,14 +490,11 @@ function ActionBar({
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         showToast((json as { error?: string }).error ?? `${label} failed`, false);
-        setActionState("error");
         return null;
       }
-      setActionState("success");
       return json;
     } catch {
       showToast(`${label} failed — network error`, false);
-      setActionState("error");
       return null;
     } finally {
       setActing(null);

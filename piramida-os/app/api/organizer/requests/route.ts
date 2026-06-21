@@ -1,8 +1,5 @@
 import { NextRequest } from "next/server";
-import {
-  submitOrganizerEventRequest,
-  listEventRequests,
-} from "@/lib/services/event-requests";
+import { submitOrganizerEventRequest } from "@/lib/services/event-requests";
 import { getCurrentProfile } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getOrgId } from "@/lib/db/org";

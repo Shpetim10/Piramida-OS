@@ -61,7 +61,7 @@ function CameraRig({ controlsRef, hero = false }: { controlsRef: React.RefObject
       toT: preset.tar.clone(),
     };
     if (ctr) ctr.enabled = false;
-  }, [view, floorId, spaceId, camera, controlsRef]);
+  }, [view, floorId, spaceId, camera, controlsRef, hero]);
 
   useFrame((_, dt) => {
     const a = anim.current;

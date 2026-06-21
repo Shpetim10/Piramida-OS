@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/auth/supabase-browser";
+import { BrandMark } from "@/components/BrandLogo";
 
 export default function SetPasswordPage() {
   const router = useRouter();
@@ -102,10 +103,7 @@ export default function SetPasswordPage() {
           href="/"
           style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 11, textDecoration: "none", marginBottom: 22 }}
         >
-          <svg width="32" height="32" viewBox="0 0 34 34" fill="none">
-            <polygon points="17,4 31,29 3,29" stroke="#C8F000" strokeWidth="1.7" />
-            <polygon points="17,4 24,16.5 10,16.5" fill="#C8F000" />
-          </svg>
+          <BrandMark height={32} />
           <div style={{ textAlign: "left" }}>
             <div style={{ font: "800 17px/1 Inter, sans-serif", color: "#fff", letterSpacing: "-.02em" }}>Pyramid OS</div>
             <div style={{ font: "600 8px/1.4 'JetBrains Mono', monospace", color: "#7D8799", letterSpacing: ".22em", marginTop: 3 }}>PYRAMID OF TIRANA</div>
